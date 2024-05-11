@@ -11,11 +11,11 @@ def Collide(object, direction: str, spriteGroup: pygame.sprite.Group) -> None:
 	hits = pygame.sprite.spritecollide(object, spriteGroup, False, isCollide)
 
 	if hits and hits[0] != object:
-			
+		
 		if direction == 'x':
-
+			
 			if object.rect.x < hits[0].rect.x: #object.delta.x > 0:
-
+				
 				object.hitRect.right = hits[0].rect.left - .001
 
 			else:
@@ -71,11 +71,10 @@ class Obstacle(pygame.sprite.Sprite):
 		
 		self.game = game
 		self.rect = pygame.Rect(position, size)
-		super().__init__(game.walls)
+		super().__init__(game.walls, game.allSprites)
+		self.image = pygame.Surface(self.rect.size)
+		pygame.draw.rect(self.image, pygame.color.THECOLORS['yellow'], self.game.camera.Apply(self.rect), 2)
 
-	def DrawRect(self, surface):
-		
-		pygame.draw.rect(surface, pygame.color.THECOLORS['yellow'], self.game.camera.Apply(self.rect), 2)
 
 class Map(pygame.sprite.Sprite):
 

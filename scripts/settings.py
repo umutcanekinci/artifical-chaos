@@ -1,3 +1,6 @@
+from pygame import Rect
+
 FPS = 60
 SPRITE_SIZE = 16
 SCALE_FACTOR = 3
+FOOTPRINT_DURATION = 300

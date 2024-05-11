@@ -26,24 +26,24 @@ class Footprint(pygame.sprite.Sprite):
 
 		self.game = game
 		self.rect = pygame.Rect(0, 0, SPRITE_SIZE, SPRITE_SIZE)
-		self.image = pygame.Surface(self.rect.size)
-		pygame.draw.circle(self.image, (255, 255, 255), (SPRITE_SIZE//2, SPRITE_SIZE//2), SPRITE_SIZE//2)
+		self.image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+		self.size = 1
+		pygame.draw.circle(self.image, (255, 255, 255), (SPRITE_SIZE//2, SPRITE_SIZE//2), self.size, 1)
 		self.rect.center = position
-		self.duration = 1000
+		
 		self.creationTime = pygame.time.get_ticks()
 
 	def update(self, *args: Any, **kwargs: Any) -> None:
 
-		self.rect.center = self.game.mousePosition
-
-		if pygame.time.get_ticks() - self.creationTime >= self.duration:
+		if pygame.time.get_ticks() - self.creationTime >= FOOTPRINT_DURATION * 2:
 			
 			self.kill()
 
 		else:
 
-			self.image = pygame.Surface(self.rect.size)
-			pygame.draw.circle(self.image, (255, 255, 255), (SPRITE_SIZE//2, SPRITE_SIZE//2), SPRITE_SIZE//2)
+			self.size += 1
+			self.image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+			pygame.draw.circle(self.image, (255, 255, 255), (SPRITE_SIZE//2, SPRITE_SIZE//2), self.size//3, 1)
 
 		return super().update(*args, **kwargs)
 
@@ -67,6 +67,7 @@ class Player(pygame.sprite.Sprite):
 
 		self.lastFootprint = 0
 		self.facing = 0
+		self.leftFoot = True
 
 	def _LoadImages(self):
 		
@@ -115,9 +116,19 @@ class Player(pygame.sprite.Sprite):
 			self.rotation.normalize()
 			velocity = self.rotation * self.MS
 
-			if pygame.time.get_ticks() - self.lastFootprint >= 1000:
+			if pygame.time.get_ticks() - self.lastFootprint >= FOOTPRINT_DURATION:
 				
-				Footprint(self.game, self.rect.center)
+				if self.leftFoot:
+					
+					Footprint(self.game, Vector2(self.rect.center) + Vector2(20, 30))
+					self.leftFoot = False
+
+				else:
+					
+					Footprint(self.game, Vector2(self.rect.center) + Vector2(15, 30))
+					self.leftFoot = True
+
+				self.lastFootprint = pygame.time.get_ticks()
 
 			self.rect.move_ip(velocity)
 			self.hitRect.center = self.rect.center
@@ -125,8 +136,6 @@ class Player(pygame.sprite.Sprite):
 			Collide(self, 'x', self.game.walls)
 			self.hitRect.centery += velocity.y
 			Collide(self, 'y', self.game.walls)
-
-			
 
 		else:
 
