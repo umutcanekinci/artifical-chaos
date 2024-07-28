@@ -1,40 +1,9 @@
 import pygame
 from pytmx import load_pygame, TiledTileLayer
 from scripts.settings import *
-
-def isCollide(one, two):
-
-	return one.hitRect.colliderect(two.rect)
-
-def Collide(object, direction: str, spriteGroup: pygame.sprite.Group) -> None:
-
-	hits = pygame.sprite.spritecollide(object, spriteGroup, False, isCollide)
-
-	if hits and hits[0] != object:
-		
-		if direction == 'x':
-			
-			if object.rect.x < hits[0].rect.x: #object.delta.x > 0:
-				
-				object.hitRect.right = hits[0].rect.left - .001
-
-			else:
-
-				object.hitRect.left = hits[0].rect.right + .001
-
-			object.velocity.x = 0
-
-		if direction == 'y':
-
-			if object.rect.y < hits[0].rect.y: #object.delta.y > 0:
-				
-				object.hitRect.bottom = hits[0].rect.top - .001
-			
-			else:
-				
-				object.hitRect.top = hits[0].rect.bottom + .001
-			
-			object.velocity.y = 0
+from scripts.flag import Flag
+from scripts.robot import Scarab
+from scripts.solider import Solider
 
 class Camera():
 
@@ -51,7 +20,7 @@ class Camera():
 		self.rect.x = max(self.rect.width - self.map.rect.width, min(0, self.rect.x))
 		self.rect.y = max(self.rect.height - self.map.rect.height, min(0, self.rect.y))
 
-	def Apply(self, rect: pygame.Rect):
+	def Apply(self, rect: pygame.Rect) -> pygame.Rect:
 		
 		return pygame.Rect((self.rect.x + rect.x, self.rect.y + rect.y), rect.size)
 
@@ -69,12 +38,10 @@ class Obstacle(pygame.sprite.Sprite):
 
 	def __init__(self, game, position, size) -> None:
 		
+		super().__init__(game.walls)
+
 		self.game = game
 		self.rect = pygame.Rect(position, size)
-		super().__init__(game.walls, game.allSprites)
-		self.image = pygame.Surface(self.rect.size)
-		pygame.draw.rect(self.image, pygame.color.THECOLORS['yellow'], self.game.camera.Apply(self.rect), 2)
-
 
 class Map(pygame.sprite.Sprite):
 
@@ -87,9 +54,9 @@ class Map(pygame.sprite.Sprite):
 		self.tileWidth, self.tileHeight = self.tiledMap.tilewidth * SCALE_FACTOR, self.tiledMap.tileheight * SCALE_FACTOR
 		self.columnCount, self.rowCount = self.tiledMap.width, self.tiledMap.height
 
-		self.Render()
-		#self.DrawGrid()
 		self.GetObjects()
+		self.Render()
+		
 
 	def Render(self):
 		
@@ -114,26 +81,28 @@ class Map(pygame.sprite.Sprite):
 
 		for object in self.tiledMap.objects:
 
-			#if "base" in object.name:
+			if "flag" in object.name:
 
-			#	self.basePoints[int(object.name[-1:])] = object.x + self.tileWidth / 2, object.y + self.tileHeight / 2
-
+				Flag(self.game, (object.x * SCALE_FACTOR + self.tileWidth / 2, object.y * SCALE_FACTOR + self.tileHeight / 2))
+				Scarab(self.game, (object.x * SCALE_FACTOR + self.tileWidth / 2, object.y * SCALE_FACTOR + self.tileHeight / 2))
+				Solider(self.game, (object.x * SCALE_FACTOR + self.tileWidth / 2, object.y * SCALE_FACTOR + self.tileHeight / 2 + 100))
+			
 			if "spawnPoint" in object.name:
 
 				self.spawnPoint = object.x + self.tileWidth / 2, object.y + self.tileHeight / 2
 
 			if "wall" in object.name:
 
-				Obstacle(self.game, (object.x, object.y), (object.width, object.height))
+				Obstacle(self.game, (object.x * SCALE_FACTOR, object.y * SCALE_FACTOR), (object.width * SCALE_FACTOR, object.height * SCALE_FACTOR))
 
-	def DrawGrid(self):
-
+	def DrawGrid(self, surface: pygame.Surface):
+		
 		# Draw column lines
 		for columnNumber in range(self.columnCount+1):
 
-			pygame.draw.line(self.image, pygame.color.THECOLORS['grey'], (columnNumber*self.tileWidth, 0), (columnNumber*self.tileWidth, self.rect.height), 1)
+			pygame.draw.line(surface, pygame.color.THECOLORS['grey'], (columnNumber*self.tileWidth + self.game.camera.rect.x, self.game.camera.rect.y), (columnNumber*self.tileWidth + self.game.camera.rect.x, self.rect.height + self.game.camera.rect.y), 1)
 
 		# Draw row lines
 		for rowNumber in range(self.rowCount+1):
 
-			pygame.draw.line(self.image, pygame.color.THECOLORS['grey'], (0, rowNumber*self.tileHeight), (self.rect.width, rowNumber*self.tileHeight), 1)
+			pygame.draw.line(surface, pygame.color.THECOLORS['grey'], (self.game.camera.rect.x, rowNumber*self.tileHeight + self.game.camera.rect.y), (self.rect.width + self.game.camera.rect.x, rowNumber*self.tileHeight + self.game.camera.rect.y), 1)
