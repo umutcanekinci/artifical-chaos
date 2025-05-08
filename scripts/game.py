@@ -1,5 +1,5 @@
 import pygame
-from scripts.map import Map, Camera
+from scripts.tilemap import Map, Camera
 from scripts.player import Player
 from scripts.settings import *
 from sys import exit
@@ -7,6 +7,7 @@ from scripts.flag import Dot
 from pygame.math import Vector2
 
 class Game():
+    CURSOR_PATH = "assets/images/UI/mouse-pointer.png"
 
     def __init__(self):
 
@@ -30,29 +31,28 @@ class Game():
         self.robots = pygame.sprite.Group()
 
         self.map = Map(self)
-        self.camera = Camera(self.rect.size, self.map)
         self.player = Player(self, self.map.rect.center)
-
+        self.camera = Camera(self.rect.size, self.map)
+        
         self.SetCursorVisible(False)
-        self.SetCursorImage(pygame.image.load("assets/images/UI/mouse-pointer.png"))
+        self.SetCursorImage(pygame.image.load(Game.CURSOR_PATH))
 
         self.lastDot = 0
         
+    #region Cursor
 
     def SetCursorVisible(self, value=True) -> None:
-
         pygame.mouse.set_visible(value)
 
     def SetCursorImage(self, image) -> None:
-
         self.cursor = image
 
-    def Start(self):
+    #endregion
 
+    def Start(self):
         self.isRunning = True
 
         while self.isRunning:
-
             self.deltaTime = self.clock.tick(FPS) / 1000
             self.mousePosition = pygame.mouse.get_pos()
             self.keys = pygame.key.get_pressed()
@@ -66,19 +66,14 @@ class Game():
     def HandleEvents(self):
 
         for event in pygame.event.get():
-
             if event.type == pygame.QUIT:
-
                 self.Exit()
 
             elif event.type == pygame.KEYDOWN:
-
                 if event.key == pygame.K_ESCAPE:
-
                     self.Exit()
 
                 elif event.key == pygame.K_F2:
-
                     self.debugMode = not self.debugMode
 
     def Update(self):
@@ -92,7 +87,6 @@ class Game():
         self.camera.Draw(self.window, self.map)
         
         for flag in self.flags:
-
             flag.DrawPulse(self.window)
 
         self.camera.Draw(self.window, self.allSprites)
@@ -145,15 +139,12 @@ class Game():
             """
 
         if self.debugMode:
-
             self.map.DrawGrid(self.window)
 
             for sprite in self.allSprites:
-
                 pygame.draw.rect(self.window, (255, 0, 0), self.camera.Apply(sprite.rect), 1)
 
             for sprite in self.walls:
-
                 pygame.draw.rect(self.window, (255, 0, 0), self.camera.Apply(sprite.rect), 1)
 
             pygame.draw.rect(self.window, (255, 0, 0), self.camera.Apply(self.player.hitRect), 1)
@@ -161,7 +152,6 @@ class Game():
         self.window.blit(self.cursor, self.mousePosition)
 
     def Exit(self):
-
         self.isRunning = False
         pygame.quit()
         exit()

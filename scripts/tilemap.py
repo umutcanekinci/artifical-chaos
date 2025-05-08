@@ -3,7 +3,7 @@ from pytmx import load_pygame, TiledTileLayer
 from scripts.settings import *
 from scripts.flag import Flag
 from scripts.robot import Scarab
-from scripts.solider import Solider
+from scripts.solider import Soldier
 
 class Camera():
 
@@ -27,11 +27,9 @@ class Camera():
 	def Draw(self, image, objects):
 
 		if not hasattr(objects, '__iter__'):
-
 			objects = [objects]
 
 		for object in objects:
-			
 			image.blit(object.image, self.Apply(object.rect))
 
 class Obstacle(pygame.sprite.Sprite):
@@ -85,7 +83,7 @@ class Map(pygame.sprite.Sprite):
 
 				Flag(self.game, (object.x * SCALE_FACTOR + self.tileWidth / 2, object.y * SCALE_FACTOR + self.tileHeight / 2))
 				Scarab(self.game, (object.x * SCALE_FACTOR + self.tileWidth / 2, object.y * SCALE_FACTOR + self.tileHeight / 2))
-				Solider(self.game, (object.x * SCALE_FACTOR + self.tileWidth / 2, object.y * SCALE_FACTOR + self.tileHeight / 2 + 100))
+				Soldier(self.game, (object.x * SCALE_FACTOR + self.tileWidth / 2, object.y * SCALE_FACTOR + self.tileHeight / 2 + 100))
 			
 			if "spawnPoint" in object.name:
 
