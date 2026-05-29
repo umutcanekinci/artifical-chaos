@@ -1,9 +1,11 @@
-from scripts.game import Game
+import sys
+from pathlib import Path
 
-def main():
-    
-    Game().Start()
+_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(_ROOT / "src"))
+sys.path.insert(0, str(_ROOT / "src" / "pygame_core"))
 
-if __name__ == '__main__':
+from app.game import Game
 
-    main()
+if __name__ == "__main__":
+    Game().run()

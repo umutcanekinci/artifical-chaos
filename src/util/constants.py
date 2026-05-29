@@ -1,6 +1,7 @@
 from pygame import Rect
 
 FPS = 60
+SIZE = (1920, 1080)  # fixed render resolution; Application upscales it (SCALED) to the display
 SPRITE_SIZE = 16
 FLAG_SIZE = 64
 SCALE_FACTOR = 3
