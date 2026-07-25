@@ -14,12 +14,22 @@ from gameplay.combat import apply_damage, find_nearest, ready_to_attack
 
 
 class Soldier(GameObject):
+    """A recruitable ally. `soldier_class` looks up movement speed and
+    fire stats from SOLDIER_CLASSES (util/constants.py) and picks the
+    matching sprite sheet -- only classes that fit the existing
+    single-target hitscan attack are wired up (Assault/Sniper/MachineGunner/
+    AntiTank); Grenadier and RadioOperator need mechanics this codebase
+    doesn't have yet (AoE, a support ability), see GDD.md."""
 
-    def __init__(self, game, position):
+    def __init__(self, game, position, soldier_class: str = "Assault-Class"):
         super().__init__(name="soldier")
         self.game = game
         self.hp = 100
-        self.ms = 80
+        stats = SOLDIER_CLASSES[soldier_class]
+        self.ms = stats["speed"]
+        self.fire_range = stats["fire_range"]
+        self.fire_damage = stats["fire_damage"]
+        self.fire_cooldown_ms = stats["fire_cooldown_ms"]
 
         self.acceleration = Vector2()
         self.velocity = Vector2()
@@ -37,7 +47,7 @@ class Soldier(GameObject):
 
         self.add_component(SpriteRenderer2D)
         self.add_component(Animator)
-        add_directional_clips(self, ImagePath("Assault-Class", "soliders"),
+        add_directional_clips(self, ImagePath(soldier_class, "soliders"),
                               {"idle": 0, "walking": 1, "fire": 3})
         self.get_component(Animator).play("idle_0")
 
@@ -92,7 +102,7 @@ class Soldier(GameObject):
     def engage(self) -> None:
         """Fights the nearest drone in range instead of following the
         player, if one's close enough; otherwise falls back to walk()."""
-        target = find_nearest(self.position, self.game.robots, SOLDIER_FIRE_RANGE)
+        target = find_nearest(self.position, self.game.robots, self.fire_range)
         if target is None:
             self.walk()
             return
@@ -102,7 +112,7 @@ class Soldier(GameObject):
         delta = target.position - self.position
         if delta.x != 0:
             self.facing = 1 if delta.x < 0 else 0
-        self.attack(target, SOLDIER_FIRE_DAMAGE, SOLDIER_FIRE_COOLDOWN_MS)
+        self.attack(target, self.fire_damage, self.fire_cooldown_ms)
 
     @override
     def update(self):

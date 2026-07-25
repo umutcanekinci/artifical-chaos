@@ -13,17 +13,29 @@ from gameplay.animation import add_directional_clips, add_death_clip
 from gameplay.combat import apply_damage, find_nearest, ready_to_attack
 
 
-class Scarab(GameObject):
+class Drone(GameObject):
     """A basic drone: idle until something enters AGGRO_RADIUS, then chases
     the nearest player/in-army-soldier, melees at point-blank range or fires
     at mid-range, and holds a destroyed frame for DESTROYED_DURATION_MS
-    before being purged (see Game._purge_inactive)."""
+    before being purged (see Game._purge_inactive).
 
-    def __init__(self, game, position) -> None:
-        super().__init__(name="scarab")
+    `drone_type` looks up stats + the sprite sheet name from DRONE_TYPES
+    (util/constants.py) -- only types sharing the idle/walk/fire/melee/
+    destroyed sheet layout (Scarab, Spider) are supported. Subclasses below
+    just pin the type so `Scarab(game, pos)` reads the same as before."""
+
+    def __init__(self, game, position, drone_type: str) -> None:
+        super().__init__(name=drone_type.lower())
         self.game = game
-        self.hp = SCARAB_HP
-        self.ms = SCARAB_SPEED
+        stats = DRONE_TYPES[drone_type]
+        self.hp = stats["hp"]
+        self.ms = stats["speed"]
+        self.melee_range = stats["melee_range"]
+        self.fire_range = stats["fire_range"]
+        self.melee_damage = stats["melee_damage"]
+        self.fire_damage = stats["fire_damage"]
+        self.melee_cooldown_ms = stats["melee_cooldown_ms"]
+        self.fire_cooldown_ms = stats["fire_cooldown_ms"]
 
         self.acceleration = Vector2()
         self.velocity = Vector2()
@@ -40,9 +52,9 @@ class Scarab(GameObject):
 
         self.add_component(SpriteRenderer2D)
         self.add_component(Animator)
-        add_directional_clips(self, ImagePath("Scarab", "robots"),
+        add_directional_clips(self, ImagePath(drone_type, "robots"),
                               {"idle": 0, "walking": 1, "fire": 2, "melee": 3})
-        add_death_clip(self, ImagePath("Scarab", "robots"), row=4)
+        add_death_clip(self, ImagePath(drone_type, "robots"), row=4)
         self.get_component(Animator).play("idle_0")
 
         game.all_sprites.append(self)
@@ -62,14 +74,14 @@ class Scarab(GameObject):
         delta = Vector2(target.position) - self.position
         distance = delta.length()
 
-        if distance <= MELEE_RANGE:
+        if distance <= self.melee_range:
             self.acceleration = Vector2()
             self.status = "melee"
-            self.attack(target, MELEE_DAMAGE, MELEE_COOLDOWN_MS)
-        elif distance <= FIRE_RANGE:
+            self.attack(target, self.melee_damage, self.melee_cooldown_ms)
+        elif distance <= self.fire_range:
             self.acceleration = Vector2()
             self.status = "fire"
-            self.attack(target, FIRE_DAMAGE, FIRE_COOLDOWN_MS)
+            self.attack(target, self.fire_damage, self.fire_cooldown_ms)
         else:
             self.status = "walking"
             self.acceleration = delta.normalize() * self.ms
@@ -116,3 +128,17 @@ class Scarab(GameObject):
 
         self.get_component(Animator).play(f"{self.status}_{self.facing}")
         super().update()
+
+
+class Scarab(Drone):
+    def __init__(self, game, position) -> None:
+        super().__init__(game, position, drone_type="Scarab")
+
+
+class Spider(Drone):
+    def __init__(self, game, position) -> None:
+        super().__init__(game, position, drone_type="Spider")
+
+
+# Spawn-time lookup for map.py, keyed the same as DRONE_TYPES.
+DRONE_CLASSES = {"Scarab": Scarab, "Spider": Spider}

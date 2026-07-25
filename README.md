@@ -2,24 +2,24 @@
 
 ![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/umutcanekinci/artifical-chaos/main/.github/badges/coverage.json)
 
-Artificial Chaos is a 2D top-down game prototype built with [pygame](https://www.pygame.org/). You control a squad leader who moves across a Tiled-authored map, recruits nearby soldiers into a following squad, and earns rank — with objective flags and roaming robots scattered around the world.
+Artificial Chaos is a 2D top-down game prototype built with [pygame](https://www.pygame.org/). You control the last human still in control of their own mind, freeing mind-controlled soldiers into a following squad while fighting off autonomous combat drones — see [GDD.md](GDD.md) for the full story/design doc.
 
 ![Gameplay](docs/preview.gif)
 
-> **⚠️ Status: unfinished prototype.** This is early work and is not in active development — combat, objectives, and win/lose conditions are unimplemented. It has, however, been migrated onto my shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine (vendored as a git submodule, like [chokepoint](https://github.com/umutcanekinci/chokepoint)): the game loop now extends `pygame_core.Application`, entities are `GameObject`s with `Transform`/`SpriteRenderer2D`/`Animator` components rendered through `pygame_core.Camera`, and asset/spritesheet handling uses `pygame_core` instead of project-local copies.
+> **⚠️ Status: unfinished prototype**, not in active development. Core combat and a first-pass win/lose condition now work (see Gameplay below); flag-capture, effects/projectiles, and 2 of 6 soldier classes + 3 of 5 drone types are still unimplemented. It has been migrated onto my shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine (vendored as a git submodule, like [chokepoint](https://github.com/umutcanekinci/chokepoint)): the game loop now extends `pygame_core.Application`, entities are `GameObject`s with `Transform`/`SpriteRenderer2D`/`Animator` components rendered through `pygame_core.Camera`, and asset/spritesheet handling uses `pygame_core` instead of project-local copies.
 
 ## Gameplay
 
-Move the squad leader around the map. When you get close to a soldier, they join your army and start following you while spreading out to avoid crowding each other. Walking leaves a trail of fading footprints, and your rank insignia is shown next to the player. Objective flags pulse on the map, and robots roam the world. Combat, objectives, and win/lose conditions are not yet implemented.
+Move the squad leader around the map. When you get close to a soldier, they join your army and start following you while spreading out to avoid crowding each other. Hold the left mouse button to fire your sidearm at the nearest drone in range. Recruited soldiers auto-fight nearby drones too. Drones aggro onto the player or squad within range and melee or fire back. Defeat every drone on the map to win; the Squad Leader dying ends the run. Walking leaves a trail of fading footprints, and your rank insignia is shown next to the player. Objective flags pulse on the map but don't do anything yet — see GDD.md's build order for what's next.
 
 ### Entities
 
-| Entity                | Sprite             | Behaviour                                                                 |
-|-----------------------|--------------------|---------------------------------------------------------------------------|
-| Squad Leader (player) | `SquadLeader.png`  | WASD/arrow movement with friction; leaves footprints; recruits nearby soldiers; rank insignia shown above |
-| Soldier               | `Assault-Class.png`| Recruited when the player comes within range, then follows and avoids crowding |
-| Scarab (robot)        | `Scarab.png`       | Roaming robot — idle animation only, AI not yet implemented               |
-| Objective flag        | `objective-flag.png`| Pulsing objective marker, placed from the Tiled map                      |
+| Entity                | Sprite                                                             | Behaviour                                                                 |
+|-----------------------|----------------------------------------------------------------------|---------------------------------------------------------------------------|
+| Squad Leader (player) | `SquadLeader.png`  | WASD/arrow movement with friction; leaves footprints; recruits nearby soldiers; rank insignia shown above; fires a sidearm at the nearest drone in range while the left mouse button is held |
+| Soldier               | `Assault-Class.png`, `Sniper-Class.png`, `MachineGunner-Class.png`, `AntiTank-Class.png` | Recruited when the player comes within range, then follows/avoids crowding, and auto-fires at the nearest drone in range instead of following once one's close enough |
+| Drone (Scarab, Spider)| `Scarab.png`, `Spider.png`         | Aggros onto the player/squad within range, chases, then melees or fires depending on distance; holds a destroyed pose before being removed |
+| Objective flag        | `objective-flag.png`| Pulsing objective marker, placed from the Tiled map — no gameplay effect yet |
 
 ### Controls
 
@@ -55,11 +55,12 @@ src/gameplay/map.py       Tiled map loader + Obstacle (collision walls)
 src/gameplay/camera.py    FollowCamera — pygame_core.Camera plus a follow() helper
 src/gameplay/collision.py AABB Collide resolution against the wall list
 src/gameplay/animation.py Builds Animator clips from pygame_core.SpriteSheet frames
-src/gameplay/player.py    Player (squad leader) + Footprint
-src/gameplay/soldier.py   Recruitable soldiers that follow the player
-src/gameplay/robot.py     Scarab roaming robots
+src/gameplay/combat.py    Shared hitscan combat primitives (find_nearest/ready_to_attack/apply_damage)
+src/gameplay/player.py    Player (squad leader) + Footprint; fights with a sidearm
+src/gameplay/soldier.py   Recruitable soldiers that follow + auto-fight nearby drones
+src/gameplay/robot.py     Drone base class + Scarab/Spider subclasses (aggro/chase/attack AI)
 src/gameplay/flag.py      Objective flags (animated + pulsing marker)
-src/util/constants.py     Constants (FPS, render size, sprite sizes, durations, ranks)
+src/util/constants.py     Constants (FPS, render size, sprite sizes, durations, ranks, combat tuning)
 src/pygame_core/          Shared engine (git submodule)
 assets/                   Images (soldiers, robots, UI), tileset + Tiled map
 ```

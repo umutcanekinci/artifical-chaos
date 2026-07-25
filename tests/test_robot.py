@@ -1,10 +1,10 @@
 from pygame.math import Vector2
 
-from gameplay.robot import Scarab
-from util.constants import (
-    AGGRO_RADIUS, DESTROYED_DURATION_MS, FIRE_COOLDOWN_MS, FIRE_RANGE,
-    MELEE_COOLDOWN_MS, MELEE_RANGE, SCARAB_HP,
-)
+from gameplay.robot import DRONE_CLASSES, Drone, Scarab, Spider
+from util.constants import AGGRO_RADIUS, DESTROYED_DURATION_MS, DRONE_TYPES
+
+SCARAB = DRONE_TYPES["Scarab"]
+SPIDER = DRONE_TYPES["Spider"]
 
 
 def make_scarab(game, x=0, y=0) -> Scarab:
@@ -17,7 +17,7 @@ def test_spawns_idle_with_full_hp(game):
 
     s.engage()
 
-    assert s.hp == SCARAB_HP
+    assert s.hp == SCARAB["hp"]
     assert s.status == "idle"
     assert s.acceleration == Vector2(0, 0)
 
@@ -30,7 +30,7 @@ def test_ignores_targets_outside_aggro_radius(game):
 
 
 def test_chases_the_player_within_aggro_but_outside_fire_range(game):
-    game.player.position = Vector2(FIRE_RANGE + 50, 0)
+    game.player.position = Vector2(SCARAB["fire_range"] + 50, 0)
     s = make_scarab(game)
 
     s.engage()
@@ -41,11 +41,11 @@ def test_chases_the_player_within_aggro_but_outside_fire_range(game):
 
 
 def test_fires_when_in_fire_range_but_outside_melee_range(game, fake_ticks):
-    game.player.position = Vector2(FIRE_RANGE - 10, 0)
+    game.player.position = Vector2(SCARAB["fire_range"] - 10, 0)
     game.player.hp = 100
     s = make_scarab(game)
 
-    fake_ticks["t"] = FIRE_COOLDOWN_MS  # past the initial cooldown
+    fake_ticks["t"] = SCARAB["fire_cooldown_ms"]  # past the initial cooldown
     s.engage()
 
     assert s.status == "fire"
@@ -54,15 +54,15 @@ def test_fires_when_in_fire_range_but_outside_melee_range(game, fake_ticks):
 
 
 def test_melees_within_melee_range(game, fake_ticks):
-    game.player.position = Vector2(MELEE_RANGE - 5, 0)
+    game.player.position = Vector2(SCARAB["melee_range"] - 5, 0)
     game.player.hp = 100
     s = make_scarab(game)
 
-    fake_ticks["t"] = MELEE_COOLDOWN_MS
+    fake_ticks["t"] = SCARAB["melee_cooldown_ms"]
     s.engage()
 
     assert s.status == "melee"
-    assert game.player.hp == 100 - 10  # MELEE_DAMAGE, see util/constants.py
+    assert game.player.hp == 100 - SCARAB["melee_damage"]
 
 
 def test_prefers_the_nearer_soldier_over_a_farther_player(game):
@@ -74,6 +74,31 @@ def test_prefers_the_nearer_soldier_over_a_farther_player(game):
     s = make_scarab(game)
 
     assert s.get_target() is soldier
+
+
+def test_drone_classes_registry_maps_names_to_the_matching_subclass():
+    assert DRONE_CLASSES == {"Scarab": Scarab, "Spider": Spider}
+
+
+def test_spider_uses_its_own_stats_and_is_a_drone(game):
+    s = Spider(game, (0, 0))
+
+    assert isinstance(s, Drone)
+    assert s.hp == SPIDER["hp"]
+    assert s.ms == SPIDER["speed"]
+    assert s.fire_range == SPIDER["fire_range"]
+
+
+def test_spider_melees_a_target_within_its_own_shorter_melee_range(game, fake_ticks):
+    game.player.position = Vector2(SPIDER["melee_range"] - 5, 0)
+    game.player.hp = 100
+    s = Spider(game, (0, 0))
+
+    fake_ticks["t"] = SPIDER["melee_cooldown_ms"]
+    s.engage()
+
+    assert s.status == "melee"
+    assert game.player.hp == 100 - SPIDER["melee_damage"]
 
 
 def test_die_holds_the_destroyed_status_before_deactivating(game, fake_ticks):

@@ -6,7 +6,10 @@ import pytest
 from pygame.math import Vector2
 
 from gameplay.soldier import Soldier
-from util.constants import AVOID_RADIUS, SOLDIER_FIRE_COOLDOWN_MS, SOLDIER_FIRE_RANGE
+from util.constants import AVOID_RADIUS, SOLDIER_CLASSES
+
+ASSAULT = SOLDIER_CLASSES["Assault-Class"]
+SNIPER = SOLDIER_CLASSES["Sniper-Class"]
 
 
 def press(game, *keys) -> None:
@@ -115,12 +118,12 @@ def test_engage_fires_at_the_nearest_drone_in_range(game, fake_ticks):
     drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
     game.robots.append(drone)
 
-    fake_ticks["t"] = SOLDIER_FIRE_COOLDOWN_MS
+    fake_ticks["t"] = ASSAULT["fire_cooldown_ms"]
     s.engage()
 
     assert s.status == "fire"
     assert s.acceleration == Vector2(0, 0)
-    assert drone.hp == 40 - 10  # SOLDIER_FIRE_DAMAGE, see util/constants.py
+    assert drone.hp == 40 - ASSAULT["fire_damage"]
     assert s.facing == 0  # drone is to the right
 
 
@@ -136,7 +139,7 @@ def test_engage_falls_back_to_following_the_player_with_no_drone_in_range(game):
 def test_engage_ignores_drones_beyond_fire_range(game):
     game.player = SimpleNamespace(position=Vector2(0, 0))
     s = Soldier(game, (0, 0))
-    far_drone = SimpleNamespace(position=Vector2(SOLDIER_FIRE_RANGE + 10, 0), active=True, hp=40)
+    far_drone = SimpleNamespace(position=Vector2(ASSAULT["fire_range"] + 10, 0), active=True, hp=40)
     game.robots.append(far_drone)
 
     s.engage()
@@ -151,11 +154,46 @@ def test_engage_respects_the_fire_cooldown(game, fake_ticks):
     drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
     game.robots.append(drone)
 
-    fake_ticks["t"] = SOLDIER_FIRE_COOLDOWN_MS
+    fake_ticks["t"] = ASSAULT["fire_cooldown_ms"]
     s.engage()
-    assert drone.hp == 30
+    assert drone.hp == 40 - ASSAULT["fire_damage"]
 
-    fake_ticks["t"] = SOLDIER_FIRE_COOLDOWN_MS + 1
+    fake_ticks["t"] = ASSAULT["fire_cooldown_ms"] + 1
     s.engage()
 
-    assert drone.hp == 30  # still on cooldown
+    assert drone.hp == 40 - ASSAULT["fire_damage"]  # still on cooldown
+
+
+def test_soldier_defaults_to_assault_class_stats(game):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0))
+
+    assert s.ms == ASSAULT["speed"]
+    assert s.fire_range == ASSAULT["fire_range"]
+    assert s.fire_damage == ASSAULT["fire_damage"]
+    assert s.fire_cooldown_ms == ASSAULT["fire_cooldown_ms"]
+
+
+def test_soldier_class_param_picks_the_matching_stats(game):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0), soldier_class="Sniper-Class")
+
+    assert s.ms == SNIPER["speed"]
+    assert s.fire_range == SNIPER["fire_range"]
+    assert s.fire_damage == SNIPER["fire_damage"]
+    assert s.fire_cooldown_ms == SNIPER["fire_cooldown_ms"]
+
+
+def test_sniper_fires_at_a_target_beyond_the_assault_fire_range(game, fake_ticks):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0), soldier_class="Sniper-Class")
+    drone = SimpleNamespace(
+        position=Vector2(ASSAULT["fire_range"] + 50, 0), active=True, hp=100,
+    )
+    game.robots.append(drone)
+
+    fake_ticks["t"] = SNIPER["fire_cooldown_ms"]
+    s.engage()
+
+    assert s.status == "fire"
+    assert drone.hp == 100 - SNIPER["fire_damage"]

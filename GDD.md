@@ -82,43 +82,53 @@ hitscan note under Combat).
 ## Allies: Soldiers
 
 Asset pack has six classes (`assets/images/soliders/`), each with idle, walk,
-crawl, fire, hit, death, and throw frames already drawn. Only one is wired up.
+crawl, fire, hit, death, and throw frames already drawn. `Soldier` takes a
+`soldier_class` parameter (`gameplay/soldier.py`) that looks up movement
+speed and fire stats from `SOLDIER_CLASSES` (`util/constants.py`) and swaps
+in the matching sprite sheet — four classes share the same single-target
+hitscan attack and are wired up this way; `Map.spawn_objects()` round-robins
+through them per flag so squads have variety instead of every recruit being
+identical.
 
 | Class | Status | Suggested role |
 |---|---|---|
-| Assault-Class | **implemented** (follow/avoid/recruit + auto-fire on the nearest in-range drone, `SOLDIER_FIRE_RANGE`/`SOLDIER_FIRE_DAMAGE` in `util/constants.py`) | Default recruit, balanced |
-| Sniper-Class | asset only | Long range, low fire rate, high damage |
-| MachineGunner-Class | asset only | Short-medium range, high fire rate, low accuracy |
-| Grenadier-Class | asset only | Arcing AoE, good vs. drone clusters |
-| AntiTank-Class | asset only | High single-target damage, slow, good vs. tanky drones (Centipede?) |
-| RadioOperator-Class | asset only | Non-combat support — **[OPEN]**: calls in reinforcements? Reveals map? Boosts nearby squad? |
+| Assault-Class | **implemented** — default stats | Default recruit, balanced |
+| Sniper-Class | **implemented** — long `fire_range`, high `fire_damage`, slow `fire_cooldown_ms` | Long range, low fire rate, high damage |
+| MachineGunner-Class | **implemented** — short `fire_range`, low `fire_damage`, very fast `fire_cooldown_ms` | Short-medium range, high fire rate, low accuracy (approximated here as low per-shot damage) |
+| AntiTank-Class | **implemented** — high `fire_damage`, slow `speed` | High single-target damage, slow, good vs. tanky drones (Centipede?) |
+| Grenadier-Class | asset only — **not implemented**, needs a real AoE mechanic (splash damage against multiple targets) that `gameplay/combat.py`'s single-target `find_nearest`/`apply_damage` doesn't support yet | Arcing AoE, good vs. drone clusters |
+| RadioOperator-Class | asset only — **not implemented** | Non-combat support — **[OPEN]**: calls in reinforcements? Reveals map? Boosts nearby squad? |
 
-All six sharing the follow/avoid/recruit code already written for
-Assault-Class is the obvious first step — the class only needs to change
-which sprite sheet and which attack behavior gets attached.
+Per-class tuning is first-pass, not balanced (same caveat as drone/player
+combat numbers — see `util/constants.py`).
 
 ## Enemies: Drones
 
 Asset pack (`assets/images/robots/`), animation info confirms combat frames
 already exist for most of them (idle, walk, **firing**, **melee**,
 **destroyed** for Scarab/Spider; neutral hover + firing hover for Hornet).
-Only Scarab is spawned today. It now has a full combat AI
-(`gameplay/robot.py`): idle → chase within `AGGRO_RADIUS` → melee or fire
-depending on range → destroyed (holds for `DESTROYED_DURATION_MS` before
-being removed).
+Both Scarab and Spider are spawned today via a shared `Drone` base class
+(`gameplay/robot.py`) parameterized by `DRONE_TYPES` (`util/constants.py`):
+idle → chase within `AGGRO_RADIUS` → melee or fire depending on range →
+destroyed (holds for `DESTROYED_DURATION_MS` before being removed). `Scarab`
+and `Spider` are thin subclasses pinning their `drone_type`; `DRONE_CLASSES`
+maps type name → class for spawn-time lookup. `Map.spawn_objects()`
+round-robins between them per flag.
 
 | Drone | Sheet size | Frames available | Suggested role |
 |---|---|---|---|
 | Scarab | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | **Implemented** — basic grunt, melee up close, ranged fallback at mid-range |
-| Spider | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | Fast flanker, prefers melee — same sheet layout as Scarab, should be a near-copy of `Scarab`/`robot.py` once art is swapped in |
+| Spider | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | **Implemented** — fast flanker: higher `speed` and a much shorter `fire_range` than Scarab so it closes to melee instead of lingering at range |
 | Hornet | 192×48 | neutral hover, firing hover (undocumented row count/width — more columns than Scarab, likely a smoother hover loop) | Flying, ranged only, no melee frame so keeps distance |
 | Wasp | 128×16 (single row) | **[OPEN — not in Robot animation info.txt; only one row, so likely a single held pose/loop rather than idle+walk+attack]** | Flying, likely ranged skirmisher — needs a source check before committing to this role |
 | Centipede | 128×288 | **[OPEN — not in Robot animation info.txt; unusually tall sheet, doesn't fit the 16px-row assumption the others use — may be a segmented/modular body (head/body/tail pieces) rather than simple animation rows]** | Segmented/heavy — good siege-unit candidate, but figure out the actual sprite layout first |
 
-`Scarab.get_target()` picks the nearest of the player or any in-army soldier
+`Drone.get_target()` picks the nearest of the player or any in-army soldier
 within `AGGRO_RADIUS` (`gameplay/combat.find_nearest`) — so drones will
 peel off to chase a nearby soldier instead of the player if one's closer,
-which was verified in `test_robot.py`.
+which was verified in `test_robot.py`. `AGGRO_RADIUS` and
+`DESTROYED_DURATION_MS` are shared by all drone types; everything else
+(hp/speed/ranges/damage/cooldowns) is per-type in `DRONE_TYPES`.
 
 ## Combat
 
@@ -177,8 +187,8 @@ of invisible-only.
 
 | Category | Available | Wired up |
 |---|---|---|
-| Soldier classes | 6 | 1 (Assault, combat-capable) |
-| Drone types | 5 | 1 (Scarab, combat-capable) |
+| Soldier classes | 6 | 4 (Assault, Sniper, MachineGunner, AntiTank — all combat-capable) |
+| Drone types | 5 | 2 (Scarab, Spider — both combat-capable) |
 | Effects sheets | 10 | 0 |
 | Projectile sheets | 3 | 0 |
 | Maps | 1 | 1 |
@@ -194,13 +204,14 @@ of invisible-only.
    (`gameplay/combat.py`, shared by Scarab/Player/Soldier).
 4. ~~Win/lose condition~~ **done** ("all drones dead" / player HP 0, see
    Objectives above).
-5. **Next up:** wire the other 5 soldier classes onto the same
-   follow/avoid/recruit/engage code with per-class combat stats (ranges,
-   damage, cooldowns already parameterized per-attacker in
-   `util/constants.py`, so this is mostly new stat blocks + sprite sheets,
-   not new logic).
-6. Then: give Spider the same AI as Scarab (identical 80×80/5×5 sheet
-   layout), then Hornet/Wasp/Centipede once their sheet layouts are
-   confirmed (see the **[OPEN]** rows in Enemies above).
-7. Only then: polish (effects, projectiles, visible obstacles, RadioOperator
-   support ability, rank bonuses, flag-capture as a richer win condition).
+5. ~~Wire the other soldier classes onto the same follow/avoid/recruit/engage
+   code with per-class combat stats~~ **done for Assault/Sniper/
+   MachineGunner/AntiTank** (`SOLDIER_CLASSES` in `util/constants.py`).
+   Grenadier and RadioOperator still need new mechanics (AoE, a support
+   ability) the current single-target hitscan model doesn't cover.
+6. ~~Give Spider the same AI as Scarab~~ **done** (`Drone` base class +
+   `DRONE_TYPES["Spider"]`). Hornet/Wasp/Centipede are still blocked on
+   confirming their sheet layouts (see the **[OPEN]** rows in Enemies above).
+7. **Next up:** polish (effects, projectiles, visible obstacles, RadioOperator
+   support ability, Grenadier AoE, rank bonuses, flag-capture as a richer
+   win condition).

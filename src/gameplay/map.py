@@ -6,7 +6,7 @@ from pygame_core.asset_path import ImagePath
 
 from util.constants import *
 from gameplay.flag import Flag
-from gameplay.robot import Scarab
+from gameplay.robot import DRONE_CLASSES
 from gameplay.soldier import Soldier
 
 
@@ -36,11 +36,25 @@ class Map(TiledMap):
         self.spawn_objects()
 
     def spawn_objects(self) -> None:
+        # Cycle through the wired-up drone/soldier types per flag so the map
+        # has some variety instead of every spawn being an identical pair.
+        drone_types = list(DRONE_CLASSES)
+        soldier_classes = list(SOLDIER_CLASSES)
+        flag_index = 0
+
         for obj in self.tmx.objects:
             if "flag" in obj.name:
-                Flag(self.game, (obj.x * SCALE_FACTOR + self.tile_width / 2, obj.y * SCALE_FACTOR + self.tile_height / 2))
-                Scarab(self.game, (obj.x * SCALE_FACTOR + self.tile_width / 2, obj.y * SCALE_FACTOR + self.tile_height / 2))
-                Soldier(self.game, (obj.x * SCALE_FACTOR + self.tile_width / 2, obj.y * SCALE_FACTOR + self.tile_height / 2 + 100))
+                x = obj.x * SCALE_FACTOR + self.tile_width / 2
+                y = obj.y * SCALE_FACTOR + self.tile_height / 2
+                Flag(self.game, (x, y))
+
+                drone_class = DRONE_CLASSES[drone_types[flag_index % len(drone_types)]]
+                drone_class(self.game, (x, y))
+
+                soldier_class = soldier_classes[flag_index % len(soldier_classes)]
+                Soldier(self.game, (x, y + 100), soldier_class=soldier_class)
+
+                flag_index += 1
 
             if "spawnPoint" in obj.name:
                 self.spawn_point = obj.x + self.tile_width / 2, obj.y + self.tile_height / 2
