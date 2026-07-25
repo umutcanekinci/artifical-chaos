@@ -1,0 +1,97 @@
+name: CI
+
+# Runs on GitHub's servers AFTER code arrives there:
+#   * every push to any branch
+#   * every pull request targeting main
+# Runs the pygame_core engine's own test suite (vendored as a submodule),
+# this app's own game-logic tests (tests/), and a smoke test that the app
+# itself still boots headlessly. Deliberately separate from release.yml
+# (once one exists), which would only build/publish on version tags.
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine-tests:
+    name: pygame_core test suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with pygame_core submodule)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Run pytest
+        working-directory: src/pygame_core
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: uv run --group dev pytest -q
+
+  app-tests:
+    name: App game-logic test suite
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # only this job pushes the regenerated coverage badge
+    steps:
+      - name: Checkout (with pygame_core submodule)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Run pytest with coverage
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: uv run --group dev pytest -q --cov --cov-report=json --cov-report=term
+
+      # Only on a push to main -- PRs (esp. from forks) may lack push access,
+      # and there's no reason to commit on every branch.
+      - name: Update coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: uv run python scripts/make_coverage_badge.py
+
+      - name: Commit updated badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update coverage badge [skip ci]"
+          file_pattern: .github/badges/coverage.json
+
+  app-smoke-test:
+    name: App smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with pygame_core submodule)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Boot the game headlessly for a few frames
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: uv run python scripts/smoke_test.py

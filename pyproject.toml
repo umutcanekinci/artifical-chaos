@@ -1,0 +1,29 @@
+[project]
+name = "artifical-chaos"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "pygame-ce",
+    "pytmx",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-cov>=5"]
+
+[tool.uv.sources]
+pygame-core = { path = "src/pygame_core", editable = true }
+
+[tool.pytest.ini_options]
+# Puts src/ + src/pygame_core on sys.path so tests can `import app.game` /
+# `import gameplay.*` etc. without per-file path hacks (mirrors __main__.py).
+pythonpath = ["src", "src/pygame_core"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+# pygame_core is a vendored submodule with its own separate test suite
+# (engine-tests in CI) -- the coverage badge should reflect only this app's
+# own code. Listed as explicit leaf directories rather than "src" itself:
+# coverage.py's static discovery of *unexecuted* files (needed so untested
+# modules show as 0% instead of being silently excluded from the total)
+# doesn't reliably recurse into subdirectories of a single top-level entry.
+source = ["src/app", "src/gameplay", "src/util"]

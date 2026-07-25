@@ -1,5 +1,7 @@
 # Artificial Chaos
 
+![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/umutcanekinci/artifical-chaos/main/.github/badges/coverage.json)
+
 Artificial Chaos is a 2D top-down game prototype built with [pygame](https://www.pygame.org/). You control a squad leader who moves across a Tiled-authored map, recruits nearby soldiers into a following squad, and earns rank — with objective flags and roaming robots scattered around the world.
 
 ![Gameplay](docs/preview.gif)
