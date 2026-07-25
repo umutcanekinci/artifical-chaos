@@ -12,6 +12,7 @@ from pygame_core.asset_path import ImagePath
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
+from gameplay.combat import apply_damage, find_nearest, ready_to_attack
 
 
 class Footprint(GameObject):
@@ -65,10 +66,13 @@ class Player(GameObject):
         self.facing = 0
         self.left_foot = True
         self.last_footprint = 0
+        self.last_attack_time = 0
+        self.is_dead = False
 
         self.add_component(SpriteRenderer2D)
         self.add_component(Animator)
-        add_directional_clips(self, ImagePath("SquadLeader", "soliders"), {"idle": 0, "walking": 1})
+        add_directional_clips(self, ImagePath("SquadLeader", "soliders"),
+                              {"idle": 0, "walking": 1, "fire": 3, "death": 5})
         self.get_component(Animator).play("idle_0")
 
         self.rank_position = Vector2(0, RANK_SIZE * SCALE_FACTOR)
@@ -136,16 +140,52 @@ class Player(GameObject):
         self.hit_rect.centery += self.velocity.y
         collide(self, 'y', self.game.walls)
 
+    def aim_at_mouse(self) -> None:
+        mouse_world = self.game.camera.screen_to_world(self.game.mouse.position)
+        self.facing = 1 if mouse_world.x < self.position.x else 0
+
+    def attack(self, target, damage: int, cooldown_ms: int) -> None:
+        now = pygame.time.get_ticks()
+        if not ready_to_attack(now, self.last_attack_time, cooldown_ms):
+            return
+        self.last_attack_time = now
+        if apply_damage(target, damage):
+            target.die()
+
+    def shoot(self) -> bool:
+        """Fires at the nearest drone in range while the mouse button is
+        held. Movement isn't interrupted by firing -- only this frame's
+        animation status is (can't blend "walk" and "fire" without a
+        dedicated combined clip, which the asset pack doesn't have)."""
+        if not pygame.mouse.get_pressed()[0]:
+            return False
+        self.aim_at_mouse()
+        self.status = "fire"
+        target = find_nearest(self.position, self.game.robots, PLAYER_FIRE_RANGE)
+        if target is not None:
+            self.attack(target, PLAYER_FIRE_DAMAGE, PLAYER_FIRE_COOLDOWN_MS)
+        return True
+
     @override
     def update(self):
+        if self.is_dead:
+            return
+
         self.get_soldier()
         self.walk()
         self.move()
+        self.shoot()
         self.get_component(Animator).play(f"{self.status}_{self.facing}")
         super().update()
 
     def die(self):
-        self.active = False
+        if self.is_dead:
+            return
+        self.is_dead = True
+        self.acceleration = Vector2()
+        self.velocity = Vector2()
+        self.status = "death"
+        self.get_component(Animator).play(f"death_{self.facing}")
 
     def draw_rank(self, surface, camera) -> None:
         self.rank_rect.center = self.position - self.rank_position

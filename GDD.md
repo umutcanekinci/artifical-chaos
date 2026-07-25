@@ -48,30 +48,36 @@ a time, while the drones try to stop you.
 1. Move the Squad Leader around the map (**implemented**).
 2. Get near a dormant soldier → they join and start following (**implemented**).
 3. Get near a drone → it notices and moves into attack range, then attacks
-   (**not implemented** — Scarab/Spider/Wasp/Hornet currently just idle or
-   roam with no AI at all).
-4. Soldiers in your following squad help fight nearby drones (**not
-   implemented** — Soldier has no combat code yet, only follow/avoid).
+   (**implemented** — Scarab runs a full idle → chase → melee/fire →
+   destroyed state machine; the other four drone types are still asset-only,
+   see Enemies below).
+4. Soldiers in your following squad help fight nearby drones (**implemented**
+   — an in-army Soldier auto-fires at the nearest drone in range instead of
+   following the player, falling back to following when nothing's in range).
 5. Clear enough drones / reach an objective flag → advance or win
-   (**not implemented** — Flag entities exist on the map and pulse, but do
-   nothing on reach; no win condition exists at all yet).
-6. Lose if **[OPEN]** — HP hits 0? Losing your whole squad? A timer? Nothing
-   currently reduces player HP; `Player.hp` exists but nothing decreases it.
+   (**implemented, v1 scope**: "defeat all drones" ends the run with a
+   VICTORY screen. Flag-capture as a richer win condition is still deferred —
+   see Objectives below).
+6. Lose when the Squad Leader's HP reaches 0 (**implemented** — GAME OVER
+   screen, game freezes). Losing your whole squad or a timer-based loss
+   aren't implemented and aren't currently planned.
 
 ## Player: Squad Leader
 
 Implemented today: 8-directional movement (WASD/arrows) with friction,
 footprint trail while walking, recruits soldiers within 50px, rank
-(`rank_up()`, insignia sprite, no gameplay effect yet), 100 HP field (unused).
+(`rank_up()`, insignia sprite, no gameplay effect yet), 100 HP, a mouse-aimed
+sidearm (hold left click to fire at the nearest drone in range — see Combat),
+and death (HP hits 0 → death animation plays, game freezes on a GAME OVER
+screen).
 
-Not implemented: attacking, taking damage, dying, any effect from rank
-beyond the icon.
+Not implemented: any effect from rank beyond the icon.
 
-**[OPEN]**: Does the Squad Leader fight directly, or are they support-only
-(the soldiers do all the fighting, you're the objective drones want to kill)?
-Both are valid games — the first is closer to an action-RTS hybrid, the
-second makes every step genuinely tense since losing you probably ends the
-run. Pick one; it changes a lot of downstream balance.
+**[RESOLVED]**: the Squad Leader fights directly, and so does the squad —
+neither is support-only. `Player.shoot()` fires at the nearest drone in
+range while the mouse button is held; facing tracks the mouse cursor for aim
+feedback, but hit resolution is range-based, not directional (see the
+hitscan note under Combat).
 
 ## Allies: Soldiers
 
@@ -80,7 +86,7 @@ crawl, fire, hit, death, and throw frames already drawn. Only one is wired up.
 
 | Class | Status | Suggested role |
 |---|---|---|
-| Assault-Class | **implemented** (generic follow/avoid only, no combat) | Default recruit, balanced |
+| Assault-Class | **implemented** (follow/avoid/recruit + auto-fire on the nearest in-range drone, `SOLDIER_FIRE_RANGE`/`SOLDIER_FIRE_DAMAGE` in `util/constants.py`) | Default recruit, balanced |
 | Sniper-Class | asset only | Long range, low fire rate, high damage |
 | MachineGunner-Class | asset only | Short-medium range, high fire rate, low accuracy |
 | Grenadier-Class | asset only | Arcing AoE, good vs. drone clusters |
@@ -96,47 +102,68 @@ which sprite sheet and which attack behavior gets attached.
 Asset pack (`assets/images/robots/`), animation info confirms combat frames
 already exist for most of them (idle, walk, **firing**, **melee**,
 **destroyed** for Scarab/Spider; neutral hover + firing hover for Hornet).
-Only Scarab is spawned today, and it has no AI at all — idle animation only.
+Only Scarab is spawned today. It now has a full combat AI
+(`gameplay/robot.py`): idle → chase within `AGGRO_RADIUS` → melee or fire
+depending on range → destroyed (holds for `DESTROYED_DURATION_MS` before
+being removed).
 
 | Drone | Sheet size | Frames available | Suggested role |
 |---|---|---|---|
-| Scarab | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | Basic grunt — melee up close, weak ranged fallback |
-| Spider | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | Fast flanker, prefers melee |
+| Scarab | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | **Implemented** — basic grunt, melee up close, ranged fallback at mid-range |
+| Spider | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | Fast flanker, prefers melee — same sheet layout as Scarab, should be a near-copy of `Scarab`/`robot.py` once art is swapped in |
 | Hornet | 192×48 | neutral hover, firing hover (undocumented row count/width — more columns than Scarab, likely a smoother hover loop) | Flying, ranged only, no melee frame so keeps distance |
 | Wasp | 128×16 (single row) | **[OPEN — not in Robot animation info.txt; only one row, so likely a single held pose/loop rather than idle+walk+attack]** | Flying, likely ranged skirmisher — needs a source check before committing to this role |
 | Centipede | 128×288 | **[OPEN — not in Robot animation info.txt; unusually tall sheet, doesn't fit the 16px-row assumption the others use — may be a segmented/modular body (head/body/tail pieces) rather than simple animation rows]** | Segmented/heavy — good siege-unit candidate, but figure out the actual sprite layout first |
 
-Minimum viable drone AI: idle until player/squad within an aggro radius →
-walk into attack range → play fire or melee (whichever the sprite has, prefer
-ranged if both) → repeat, with a destroyed state on death instead of just
-disappearing. This mirrors the Soldier chase/avoid code already written
-(`gameplay/soldier.py`) — the pattern (chase beyond a distance, hold within
-it) is directly reusable.
+`Scarab.get_target()` picks the nearest of the player or any in-army soldier
+within `AGGRO_RADIUS` (`gameplay/combat.find_nearest`) — so drones will
+peel off to chase a nearby soldier instead of the player if one's closer,
+which was verified in `test_robot.py`.
 
-## Combat (not yet designed in detail)
+## Combat
 
-Unused but present assets ready for this: `assets/Effects/` (explosions,
-muzzle flashes, hit sparks/spatters, smoke), `assets/Projectiles/`
-(bullets+plasma, grenade, RPG round). `gameplay/collision.py`'s AABB
-resolution already exists for movement collision and could plausibly be
-reused/adapted for hitscan or projectile-vs-entity checks.
+Implemented as of the drone-AI/win-lose build (`gameplay/combat.py`, shared
+by `Scarab`, `Player`, and `Soldier`):
 
-**[OPEN]** questions before implementing:
-- Ranged combat: hitscan, or simulated projectiles (`Projectiles/` assets
-  suggest the latter was the original intent)?
-- Friendly fire between drones, or between soldiers?
-- Does the Squad Leader have a weapon, or are they unarmed (ties into the
-  support-only question above)?
+- **`find_nearest(origin, candidates, max_range)`** — the one hit-resolution
+  primitive all three attacker types use: closest candidate with a
+  `.position` within range, skipping anything with `.active is False`.
+- **`ready_to_attack(now, last_attack_time, cooldown_ms)`** — cooldown gate.
+- **`apply_damage(target, amount)`** — subtracts HP, returns whether it
+  killed the target.
 
-## Objectives / win-lose (currently nonexistent)
+**[RESOLVED — ranged combat model]**: hitscan, defined here as an instant
+nearest-target-in-range check (`find_nearest`), **not** a directional
+raycast. A drone/player/soldier "fires" at whichever valid target is closest
+within its range, regardless of facing — facing is cosmetic (aim animation)
+only, never gates whether a shot lands. Simulated projectile objects using
+the unused `assets/Projectiles/` sheets (bullets, grenade, RPG round) are
+deferred to a later pass; `Effects/` (muzzle flash, hit sparks, explosions)
+are similarly unused and deferred as visual polish on top of the existing
+hit resolution.
 
-`Flag` entities already spawn from the Tiled map's object layer and pulse,
-but `flag.py` has no logic beyond the pulse animation — reaching one does
-nothing. **[OPEN]**: is the win condition "reach/hold all flags", "clear all
-drones", or something else? Given the pillars above (grow the squad, reclaim
-ground), "hold a flag until it's fully captured, drones will contest it"
-fits well, but "defeat all drones" is simpler to build first and could be a
-placeholder win condition to ship before the flag-capture system exists.
+**[OPEN]**: friendly fire between drones, or between soldiers — not
+implemented either way; `find_nearest` is currently only ever called with an
+opposing-faction candidate list, so there's no accidental friendly fire to
+worry about, but it's also not a deliberate design decision yet.
+
+## Objectives / win-lose
+
+`Flag` entities still spawn from the Tiled map's object layer and pulse, but
+`flag.py` has no logic beyond the pulse animation — reaching one still does
+nothing. **[RESOLVED — v1 win condition]**: "defeat all drones."
+`Game._check_end_conditions()` (`src/app/game.py`) latches
+`_robots_ever_present` the first time any drone exists, then declares
+VICTORY once the robots list is empty again (this guards against a false
+victory before any drones have spawned). Player death is checked first and
+takes priority if both conditions occur simultaneously, ending the run with
+GAME OVER instead. Both end states freeze the update loop and draw a
+translucent overlay with the end message (`_draw_end_message()`).
+
+Flag-capture as a richer/alternate win condition (hold a flag while drones
+contest it) is still deferred — "defeat all drones" was deliberately chosen
+as the simpler placeholder to ship a playable loop first, per the build
+order below.
 
 ## World
 
@@ -150,23 +177,30 @@ of invisible-only.
 
 | Category | Available | Wired up |
 |---|---|---|
-| Soldier classes | 6 | 1 (Assault, non-combat) |
-| Drone types | 5 | 1 (Scarab, non-combat) |
+| Soldier classes | 6 | 1 (Assault, combat-capable) |
+| Drone types | 5 | 1 (Scarab, combat-capable) |
 | Effects sheets | 10 | 0 |
 | Projectile sheets | 3 | 0 |
 | Maps | 1 | 1 |
 
 ## Suggested build order
 
-1. Decide the **[OPEN]** questions above (at minimum: Squad Leader fights or
-   not, win condition placeholder, ranged combat model).
-2. Drone AI: aggro radius → approach → attack → destroyed state, for Scarab
-   first (reuses the Soldier chase/hold-distance pattern).
-3. Combat resolution: damage, HP loss, death, using the existing HP field on
-   `Player`/`Soldier` and a new one on drones.
-4. Wire the other 5 soldier classes onto the same follow/avoid/recruit code
-   with per-class combat stats.
-5. Win/lose condition (start with "all drones dead" if flag-capture is too
-   much for a first pass).
-6. Only then: polish (effects, projectiles, visible obstacles, RadioOperator
-   support ability, rank bonuses).
+1. ~~Decide the **[OPEN]** questions above~~ **done** — Squad Leader fights
+   directly, win condition v1 is "defeat all drones", ranged combat is
+   hitscan-as-nearest-in-range.
+2. ~~Drone AI: aggro radius → approach → attack → destroyed state, for
+   Scarab first~~ **done** (`gameplay/robot.py`).
+3. ~~Combat resolution: damage, HP loss, death~~ **done**
+   (`gameplay/combat.py`, shared by Scarab/Player/Soldier).
+4. ~~Win/lose condition~~ **done** ("all drones dead" / player HP 0, see
+   Objectives above).
+5. **Next up:** wire the other 5 soldier classes onto the same
+   follow/avoid/recruit/engage code with per-class combat stats (ranges,
+   damage, cooldowns already parameterized per-attacker in
+   `util/constants.py`, so this is mostly new stat blocks + sprite sheets,
+   not new logic).
+6. Then: give Spider the same AI as Scarab (identical 80×80/5×5 sheet
+   layout), then Hornet/Wasp/Centipede once their sheet layouts are
+   confirmed (see the **[OPEN]** rows in Enemies above).
+7. Only then: polish (effects, projectiles, visible obstacles, RadioOperator
+   support ability, rank bonuses, flag-capture as a richer win condition).

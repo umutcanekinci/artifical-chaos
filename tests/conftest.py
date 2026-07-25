@@ -6,6 +6,7 @@ cwd == repo root for its own asset-relative paths).
 
 import os
 from collections import defaultdict
+from types import SimpleNamespace
 
 # Dummy SDL drivers so pygame can run headless (e.g. in CI) without opening a
 # real window or probing for a sound device. Must be set before pygame is
@@ -15,6 +16,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pygame
 import pytest
+from pygame.math import Vector2
 
 pygame.init()
 # Player/Soldier/Footprint/Scarab/Flag load images via convert_alpha(), which
@@ -31,6 +33,10 @@ class FakeGame:
     self.keys is a defaultdict(bool): pygame's real ScancodeWrapper returns
     False for any unpressed key, so unset entries here default the same way
     instead of KeyErroring.
+
+    self.player defaults to a plain stand-in (position/hp/active) rather
+    than None, since drones/soldiers read game.player.position every tick
+    regardless of whether the test cares about the real Player class.
     """
 
     def __init__(self):
@@ -41,7 +47,7 @@ class FakeGame:
         self.robots: list = []
         self.keys: dict = defaultdict(bool)
         self.delta_time: float = 1 / 60
-        self.player = None
+        self.player = SimpleNamespace(position=Vector2(0, 0), hp=100, active=True)
 
 
 @pytest.fixture

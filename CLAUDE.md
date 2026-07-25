@@ -47,11 +47,25 @@ uv run python scripts/smoke_test.py                       # headless boot check
 
 ### Entities
 
-- **Player** (`gameplay/player.py`): 8-directional movement with friction (`walk()` sets `acceleration`/`rotation` from `game.keys`, `move()` applies velocity + friction + AABB collision against `walls`), footprint trail (`Footprint`, spawned on a timer, grows then expires), recruits `Soldier`s within 50px (`get_soldier()`), rank counter with an insignia sprite (`rank_up()` — cosmetic only right now).
-- **Soldier** (`gameplay/soldier.py`): idle until `add_to_army()` is called (by `Player.get_soldier()`); once recruited, chases the player when farther than 100px, holds position otherwise, and separates from other soldiers within `AVOID_RADIUS` (`avoid_entities()`). No combat.
-- **Scarab** (`gameplay/robot.py`, class name `Scarab`): the only drone currently spawned. Idle animation only — no AI, no combat, no aggro.
+- **Player** (`gameplay/player.py`): 8-directional movement with friction (`walk()` sets `acceleration`/`rotation` from `game.keys`, `move()` applies velocity + friction + AABB collision against `walls`), footprint trail (`Footprint`, spawned on a timer, grows then expires), recruits `Soldier`s within 50px (`get_soldier()`), rank counter with an insignia sprite (`rank_up()` — cosmetic only right now). Fights with a sidearm: `shoot()` fires at the nearest drone in `game.robots` within `PLAYER_FIRE_RANGE` while the left mouse button is held, gated by `PLAYER_FIRE_COOLDOWN_MS`; `aim_at_mouse()` turns `facing` to face the cursor (cosmetic — hit resolution is range-based, not directional). `die()` (HP reaches 0, called by whatever damages the player) sets `is_dead`, zeroes velocity/acceleration, and plays the death clip; `update()` short-circuits once dead so the frozen death pose stays on screen instead of `self.active = False` removing the sprite.
+- **Soldier** (`gameplay/soldier.py`): idle until `add_to_army()` is called (by `Player.get_soldier()`); once recruited, `engage()` runs each frame instead of a plain follow — it fires at the nearest drone in `game.robots` within `SOLDIER_FIRE_RANGE` (gated by `SOLDIER_FIRE_COOLDOWN_MS`) if one exists, otherwise falls back to the original chase-the-player-past-100px / hold-position behavior, and always separates from other soldiers within `AVOID_RADIUS` (`avoid_entities()`).
+- **Scarab** (`gameplay/robot.py`, class name `Scarab`): the only drone currently spawned. Runs a full combat state machine each frame (`engage()`): idle until the player or an in-army soldier is within `AGGRO_RADIUS` (`get_target()`, nearest-wins via `combat.find_nearest` — will chase a closer soldier over a farther player), then approaches; within `FIRE_RANGE` it fires, within the tighter `MELEE_RANGE` it melees instead, each gated by its own cooldown (`FIRE_COOLDOWN_MS`/`MELEE_COOLDOWN_MS`). `die()` sets `status = "destroyed"` and starts a timer; `update()` holds the destroyed pose for `DESTROYED_DURATION_MS` before setting `self.active = False`, which `Game._purge_inactive()` then removes from `game.robots` on the next frame.
 - **Flag** (`gameplay/flag.py`): pulses a separate animation loop (`draw_pulse`, not part of the normal `Animator`/update cycle since it's drawn directly by `Game.draw()`); no gameplay effect on proximity yet.
 - **Obstacle** (`gameplay/map.py`): invisible `Transform`-only collision walls spawned from the Tiled map's `"wall"` objects.
+
+### Combat (`gameplay/combat.py`)
+
+Shared hitscan primitives used identically by `Scarab.attack()`, `Player.shoot()`/`attack()`, and `Soldier.engage()`/`attack()` — deliberately kept as three small near-duplicate `attack()` methods rather than a shared base-class method, matching this codebase's existing precedent of duplicating `move()` across `Player`/`Soldier` rather than unifying it.
+
+- `find_nearest(origin, candidates, max_range)` — the *only* targeting primitive in the game: returns the closest candidate (must expose `.position`; anything with `.active is False` is skipped) within `max_range`, or `None`. "Hitscan" here means this instant nearest-in-range check, **not** a directional raycast — facing/aim is cosmetic everywhere it's used.
+- `ready_to_attack(now, last_attack_time, cooldown_ms)` — cooldown gate; `now - last_attack_time >= cooldown_ms`.
+- `apply_damage(target, amount)` — decrements `target.hp`, returns whether that killed it (`hp <= 0`), so callers can trigger `target.die()`.
+
+Per-attacker range/damage/cooldown tuning lives in `util/constants.py` (`SCARAB_HP`, `AGGRO_RADIUS`, `MELEE_RANGE`/`FIRE_RANGE`, `MELEE_DAMAGE`/`FIRE_DAMAGE`, `MELEE_COOLDOWN_MS`/`FIRE_COOLDOWN_MS` for drones; `PLAYER_FIRE_*` / `SOLDIER_FIRE_*` for the two friendly attackers) — first-pass numbers, not balanced (see GDD.md).
+
+### Win / lose (`app/game.py`)
+
+`Game._check_end_conditions()` runs every frame from `update()` (which itself short-circuits entirely once `game_over` is set, freezing the sim). It latches `self._robots_ever_present = True` the first frame any drone exists, so an empty `game.robots` list at startup can't be mistaken for a victory; once latched, an empty list means VICTORY. `self.player.is_dead` is checked first and wins any simultaneous-frame tie, ending the run as GAME OVER instead. `draw()` calls `_draw_end_message()` when `game_over` is set, which blits a translucent overlay plus the centered end-state text over the final frame — there's no separate end-screen panel/scene, just an overlay on top of whatever was on screen.
 
 ### Collision
 
@@ -77,4 +91,4 @@ None yet. No save/load, no `SaveStore` usage (unlike chokepoint). `/saves/` is g
 
 ### What's missing relative to the sibling projects
 
-No `config/*.yaml` (plain constants instead — see above), no `AssetManager`, no panel/UI system, no win/lose condition, no combat of any kind (see GDD.md's "not implemented" list — this is the actual current gap, not just missing polish).
+No `config/*.yaml` (plain constants instead — see above), no `AssetManager`, no panel/UI system. Combat and a v1 win/lose condition now exist (see Combat / Win-lose above), but the end screen is a bare text overlay, not a real panel, and only 1 of 6 soldier classes and 1 of 5 drone types are wired up (see GDD.md's content-inventory table and suggested build order for what's next).

@@ -32,16 +32,38 @@ class Game(Application):
         self.mouse.set_cursor_visible(False)
         self.cursor = load_image(ImagePath("mouse-pointer", "UI"))
 
+        # Win/lose: v1 conditions only (see GDD.md) -- flag-capture and any
+        # richer lose state are explicitly deferred.
+        self._robots_ever_present = False
+        self.game_over = False
+        self.end_message = ""
+        self._end_font = pygame.font.SysFont("Arial", 96, bold=True)
+
     @override
     def update(self):
+        if self.game_over:
+            return
+
         self.delta_time = self.clock.get_time() / 1000
         self.camera.follow(self.player.rect.center)
         self.all_sprites.update()
         self._purge_inactive()
+        self._check_end_conditions()
 
     def _purge_inactive(self):
         for group in (self.all_sprites, self.walls, self.flags, self.soldiers, self.robots):
             group[:] = [obj for obj in group if obj.active]
+
+    def _check_end_conditions(self) -> None:
+        if self.robots:
+            self._robots_ever_present = True
+
+        if self.player.is_dead:
+            self.game_over = True
+            self.end_message = "GAME OVER"
+        elif self._robots_ever_present and not self.robots:
+            self.game_over = True
+            self.end_message = "VICTORY"
 
     @override
     def draw(self):
@@ -58,6 +80,18 @@ class Game(Application):
 
         self.player.draw_rank(self.window, self.camera)
         self.window.blit(self.cursor, self.mouse.position)
+
+        if self.game_over:
+            self._draw_end_message()
+
+    def _draw_end_message(self) -> None:
+        overlay = pygame.Surface(self.size, pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 140))
+        self.window.blit(overlay, (0, 0))
+
+        text = self._end_font.render(self.end_message, True, (255, 255, 255))
+        rect = text.get_rect(center=(self.size[0] // 2, self.size[1] // 2))
+        self.window.blit(text, rect)
 
     @override
     def draw_debug(self):

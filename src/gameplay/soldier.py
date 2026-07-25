@@ -10,6 +10,7 @@ from pygame_core.asset_path import ImagePath
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
+from gameplay.combat import apply_damage, find_nearest, ready_to_attack
 
 
 class Soldier(GameObject):
@@ -32,10 +33,12 @@ class Soldier(GameObject):
         self.status = "idle"
         self.facing = 0
         self.is_in_army = False
+        self.last_attack_time = 0
 
         self.add_component(SpriteRenderer2D)
         self.add_component(Animator)
-        add_directional_clips(self, ImagePath("Assault-Class", "soliders"), {"idle": 0, "walking": 1})
+        add_directional_clips(self, ImagePath("Assault-Class", "soliders"),
+                              {"idle": 0, "walking": 1, "fire": 3})
         self.get_component(Animator).play("idle_0")
 
         game.all_sprites.append(self)
@@ -78,10 +81,33 @@ class Soldier(GameObject):
                 if 0 < dist.length() < AVOID_RADIUS:
                     self.acceleration += dist.normalize()
 
+    def attack(self, target, damage: int, cooldown_ms: int) -> None:
+        now = pygame.time.get_ticks()
+        if not ready_to_attack(now, self.last_attack_time, cooldown_ms):
+            return
+        self.last_attack_time = now
+        if apply_damage(target, damage):
+            target.die()
+
+    def engage(self) -> None:
+        """Fights the nearest drone in range instead of following the
+        player, if one's close enough; otherwise falls back to walk()."""
+        target = find_nearest(self.position, self.game.robots, SOLDIER_FIRE_RANGE)
+        if target is None:
+            self.walk()
+            return
+
+        self.acceleration = Vector2()
+        self.status = "fire"
+        delta = target.position - self.position
+        if delta.x != 0:
+            self.facing = 1 if delta.x < 0 else 0
+        self.attack(target, SOLDIER_FIRE_DAMAGE, SOLDIER_FIRE_COOLDOWN_MS)
+
     @override
     def update(self):
         if self.is_in_army:
-            self.walk()
+            self.engage()
             self.avoid_entities()
             self.move()
 

@@ -6,7 +6,7 @@ import pytest
 from pygame.math import Vector2
 
 from gameplay.soldier import Soldier
-from util.constants import AVOID_RADIUS
+from util.constants import AVOID_RADIUS, SOLDIER_FIRE_COOLDOWN_MS, SOLDIER_FIRE_RANGE
 
 
 def press(game, *keys) -> None:
@@ -107,3 +107,55 @@ def test_avoid_entities_does_not_push_against_itself(game):
     a.avoid_entities()  # only `a` exists in game.soldiers -- must not self-push
 
     assert a.acceleration == Vector2(0, 0)
+
+
+def test_engage_fires_at_the_nearest_drone_in_range(game, fake_ticks):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0))
+    drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
+    game.robots.append(drone)
+
+    fake_ticks["t"] = SOLDIER_FIRE_COOLDOWN_MS
+    s.engage()
+
+    assert s.status == "fire"
+    assert s.acceleration == Vector2(0, 0)
+    assert drone.hp == 40 - 10  # SOLDIER_FIRE_DAMAGE, see util/constants.py
+    assert s.facing == 0  # drone is to the right
+
+
+def test_engage_falls_back_to_following_the_player_with_no_drone_in_range(game):
+    game.player = SimpleNamespace(position=Vector2(200, 0))
+    s = Soldier(game, (0, 0))
+
+    s.engage()
+
+    assert s.status == "walking"  # same as a direct walk() call, see test_walk_chases_...
+
+
+def test_engage_ignores_drones_beyond_fire_range(game):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0))
+    far_drone = SimpleNamespace(position=Vector2(SOLDIER_FIRE_RANGE + 10, 0), active=True, hp=40)
+    game.robots.append(far_drone)
+
+    s.engage()
+
+    assert far_drone.hp == 40
+    assert s.status == "idle"  # falls back to walk(); player is within hold distance
+
+
+def test_engage_respects_the_fire_cooldown(game, fake_ticks):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0))
+    drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
+    game.robots.append(drone)
+
+    fake_ticks["t"] = SOLDIER_FIRE_COOLDOWN_MS
+    s.engage()
+    assert drone.hp == 30
+
+    fake_ticks["t"] = SOLDIER_FIRE_COOLDOWN_MS + 1
+    s.engage()
+
+    assert drone.hp == 30  # still on cooldown

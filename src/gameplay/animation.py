@@ -25,3 +25,20 @@ def add_directional_clips(obj, path, rows: dict[str, int], *, frame_count: int =
         left = [pygame.transform.flip(frame, True, False) for frame in right]
         animator.add_clip(f"{name}_0", AnimationClip(right, fps=fps, loop=True))
         animator.add_clip(f"{name}_1", AnimationClip(left, fps=fps, loop=True))
+
+
+def add_death_clip(obj, path, row: int, *, name: str = "destroyed",
+                   size: int = SPRITE_SIZE, fps: float = 6.0) -> None:
+    """Register a single-frame, non-looping '<name>_0'/'<name>_1' clip pair.
+
+    Unlike add_directional_clips, this doesn't loop -- Animator.is_playing
+    goes False after the one frame, but callers should still gate removal
+    with their own timer (a 1-frame clip's "finished" state fires almost
+    instantly, before a player could actually see it -- see DESTROYED_DURATION_MS).
+    """
+    sheet = SpriteSheet.from_path(path)
+    animator = obj.get_component(Animator)
+    right = scaled_row(sheet, row, 1, size)
+    left = [pygame.transform.flip(frame, True, False) for frame in right]
+    animator.add_clip(f"{name}_0", AnimationClip(right, fps=fps, loop=False))
+    animator.add_clip(f"{name}_1", AnimationClip(left, fps=fps, loop=False))
