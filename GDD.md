@@ -104,31 +104,29 @@ combat numbers — see `util/constants.py`).
 
 ## Enemies: Drones
 
-Asset pack (`assets/images/robots/`), animation info confirms combat frames
-already exist for most of them (idle, walk, **firing**, **melee**,
-**destroyed** for Scarab/Spider; neutral hover + firing hover for Hornet).
-Both Scarab and Spider are spawned today via a shared `Drone` base class
-(`gameplay/robot.py`) parameterized by `DRONE_TYPES` (`util/constants.py`):
-idle → chase within `AGGRO_RADIUS` → melee or fire depending on range →
-destroyed (holds for `DESTROYED_DURATION_MS` before being removed). `Scarab`
-and `Spider` are thin subclasses pinning their `drone_type`; `DRONE_CLASSES`
-maps type name → class for spawn-time lookup. `Map.spawn_objects()`
-round-robins between them per flag.
+Asset pack (`assets/images/robots/`). All four flying/walking types are
+spawned today via a shared `Drone` base class (`gameplay/robot.py`)
+parameterized by `DRONE_TYPES` (`util/constants.py`): idle → chase within
+`AGGRO_RADIUS` → melee or fire depending on range → destroyed (holds for
+`DESTROYED_DURATION_MS` before being removed, for types that have a
+destroyed frame). `Scarab`/`Spider`/`Hornet`/`Wasp` are thin subclasses
+pinning their `drone_type`; `DRONE_CLASSES` maps type name → class for
+spawn-time lookup. `Map.spawn_objects()` round-robins between them per flag.
 
 | Drone | Sheet size | Frames available | Suggested role |
 |---|---|---|---|
 | Scarab | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | **Implemented** — basic grunt, melee up close, ranged fallback at mid-range |
 | Spider | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | **Implemented** — fast flanker: higher `speed` and a much shorter `fire_range` than Scarab so it closes to melee instead of lingering at range |
-| Hornet | 192×48 | neutral hover, firing hover (undocumented row count/width — more columns than Scarab, likely a smoother hover loop) | Flying, ranged only, no melee frame so keeps distance |
-| Wasp | 128×16 (single row) | **[OPEN — not in Robot animation info.txt; only one row, so likely a single held pose/loop rather than idle+walk+attack]** | Flying, likely ranged skirmisher — needs a source check before committing to this role |
-| Centipede | 128×288 | **[OPEN — not in Robot animation info.txt; unusually tall sheet, doesn't fit the 16px-row assumption the others use — may be a segmented/modular body (head/body/tail pieces) rather than simple animation rows]** | Segmented/heavy — good siege-unit candidate, but figure out the actual sprite layout first |
+| Hornet | 192×48, **actually 24×24 frames, 8 cols × 2 rows** (not 16px — confirmed by rendering the sheet with a grid overlay and inspecting it, since the info .txt doesn't give a frame size) | row 0 = neutral hover, row 1 = firing hover — **no destroyed frame** | **Implemented** — `melee_range: 0` so the melee branch never triggers (distance is never `<= 0`), i.e. ranged-only by construction. Removed immediately on death (no destroyed pose to hold). Doesn't yet actively keep its distance when a target closes in — it still just chases/holds like the others; a real stand-off/kiting behavior is a further-out polish item, not implemented |
+| Wasp | 128×16, **confirmed 16×16 frames, 8 cols × 1 row** (single hover-loop animation, no separate firing pose) | one clip only — `idle`/`walking`/`fire`/`melee` in `DRONE_TYPES["Wasp"]["clip_rows"]` all point at row 0, so it looks identical in every status — **no destroyed frame** | **Implemented** — fast, fragile skirmisher; same no-melee/no-destroyed-hold treatment as Hornet |
+| Centipede | 128×288 | **[OPEN — still not wired up]**: gridding the sheet at 32×32 shows ~9 rows of distinct rolled-up/mandible poses, plus a trailing row of small 16×16 icons and a partial row of extra segment-looking pieces below the main grid — consistent with the original guess that this is a modular/segmented body (a head sprite plus repeatable body-segment pieces), not a simple animation grid `Drone` can slice with `add_directional_clips`. Wiring it up means designing how a segmented body renders/moves, not just adding a `DRONE_TYPES` entry — a bigger, separate task from Hornet/Wasp | Segmented/heavy — good siege-unit candidate once the rendering approach is designed |
 
 `Drone.get_target()` picks the nearest of the player or any in-army soldier
 within `AGGRO_RADIUS` (`gameplay/combat.find_nearest`) — so drones will
 peel off to chase a nearby soldier instead of the player if one's closer,
 which was verified in `test_robot.py`. `AGGRO_RADIUS` and
 `DESTROYED_DURATION_MS` are shared by all drone types; everything else
-(hp/speed/ranges/damage/cooldowns) is per-type in `DRONE_TYPES`.
+(hp/speed/ranges/damage/cooldowns/sheet layout) is per-type in `DRONE_TYPES`.
 
 ## Combat
 
@@ -188,7 +186,7 @@ of invisible-only.
 | Category | Available | Wired up |
 |---|---|---|
 | Soldier classes | 6 | 4 (Assault, Sniper, MachineGunner, AntiTank — all combat-capable) |
-| Drone types | 5 | 2 (Scarab, Spider — both combat-capable) |
+| Drone types | 5 | 4 (Scarab, Spider, Hornet, Wasp — all combat-capable) |
 | Effects sheets | 10 | 0 |
 | Projectile sheets | 3 | 0 |
 | Maps | 1 | 1 |
@@ -209,9 +207,13 @@ of invisible-only.
    MachineGunner/AntiTank** (`SOLDIER_CLASSES` in `util/constants.py`).
    Grenadier and RadioOperator still need new mechanics (AoE, a support
    ability) the current single-target hitscan model doesn't cover.
-6. ~~Give Spider the same AI as Scarab~~ **done** (`Drone` base class +
-   `DRONE_TYPES["Spider"]`). Hornet/Wasp/Centipede are still blocked on
-   confirming their sheet layouts (see the **[OPEN]** rows in Enemies above).
+6. ~~Give Spider the same AI as Scarab, then Hornet/Wasp once their sheet
+   layouts are confirmed~~ **done** — `Drone` now takes a per-type
+   `sprite_size`/`clip_rows`/`destroyed_row` config instead of assuming
+   Scarab's layout, so Hornet (24×24, 2 rows) and Wasp (16×16, 1 row) reuse
+   the same AI/combat code with no branching. Only Centipede remains
+   unwired (see the **[OPEN]** row in Enemies above — it needs a modular/
+   segmented-body rendering approach, not just a stat block).
 7. **Next up:** polish (effects, projectiles, visible obstacles, RadioOperator
    support ability, Grenadier AoE, rank bonuses, flag-capture as a richer
-   win condition).
+   win condition, Centipede's segmented body).

@@ -18,15 +18,28 @@ MAX_RANK = 15
 DESTROYED_DURATION_MS = 600  # how long a drone's destroyed frame holds before removal
 AGGRO_RADIUS = 400  # drones notice the player/soldiers within this range, all types share it
 
-# Per-drone-type stats. Only types with an idle/walk/fire/melee/destroyed
-# sheet layout (Scarab, Spider) are wired up -- Hornet/Wasp/Centipede have
-# undocumented or incompatible sheet layouts, see GDD.md's Enemies section.
+# Per-drone-type stats + sheet layout. `clip_rows` maps a logical animation
+# name to its sheet row -- pointing two names at the same row (e.g. Hornet's
+# "idle"/"walking" both at row 0) is how a type with fewer real animations
+# than Scarab/Spider still works with the same Drone code, no branching
+# needed. `destroyed_row` is None for types without a destroyed frame
+# (Hornet, Wasp) -- those are removed immediately on death instead of
+# holding a destroyed pose, see Drone.die(). `sprite_size` is the source
+# frame size in pixels (most are SPRITE_SIZE/16px; Hornet's sheet uses 24px
+# frames, confirmed by inspecting assets/images/robots/Hornet.png directly
+# since Robot animation info.txt doesn't document it). Centipede is still
+# not wired up -- its sheet looks like a modular/segmented body (many more
+# rows than a simple animation grid), a bigger job than a stat block, see
+# GDD.md's Enemies section.
 DRONE_TYPES = {
     "Scarab": {
         "hp": 40, "speed": 60,
         "melee_range": 40, "fire_range": 250,
         "melee_damage": 10, "fire_damage": 8,
         "melee_cooldown_ms": 700, "fire_cooldown_ms": 900,
+        "sprite_size": SPRITE_SIZE,
+        "clip_rows": {"idle": 0, "walking": 1, "fire": 2, "melee": 3},
+        "destroyed_row": 4,
     },
     "Spider": {
         # Fast flanker that prefers melee (GDD role): high speed closes
@@ -36,6 +49,34 @@ DRONE_TYPES = {
         "melee_range": 50, "fire_range": 90,
         "melee_damage": 14, "fire_damage": 5,
         "melee_cooldown_ms": 500, "fire_cooldown_ms": 1000,
+        "sprite_size": SPRITE_SIZE,
+        "clip_rows": {"idle": 0, "walking": 1, "fire": 2, "melee": 3},
+        "destroyed_row": 4,
+    },
+    "Hornet": {
+        # Flying, ranged-only (GDD role): melee_range 0 means the melee
+        # branch in Drone.engage() never triggers (distance is never <= 0),
+        # so it always either chases or fires -- it never actually keeps a
+        # deliberate stand-off distance, that's a further-out polish item.
+        "hp": 45, "speed": 75,
+        "melee_range": 0, "fire_range": 300,
+        "melee_damage": 0, "fire_damage": 7,
+        "melee_cooldown_ms": 900, "fire_cooldown_ms": 850,
+        "sprite_size": 24,
+        "clip_rows": {"idle": 0, "walking": 0, "fire": 1, "melee": 1},
+        "destroyed_row": None,
+    },
+    "Wasp": {
+        # Only a single hover animation exists on the sheet (no separate
+        # firing pose) -- every clip_rows entry points at row 0, so it just
+        # looks the same in every status. Fast, fragile skirmisher.
+        "hp": 18, "speed": 140,
+        "melee_range": 0, "fire_range": 200,
+        "melee_damage": 0, "fire_damage": 4,
+        "melee_cooldown_ms": 500, "fire_cooldown_ms": 500,
+        "sprite_size": SPRITE_SIZE,
+        "clip_rows": {"idle": 0, "walking": 0, "fire": 0, "melee": 0},
+        "destroyed_row": None,
     },
 }
 

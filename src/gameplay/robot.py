@@ -19,10 +19,9 @@ class Drone(GameObject):
     at mid-range, and holds a destroyed frame for DESTROYED_DURATION_MS
     before being purged (see Game._purge_inactive).
 
-    `drone_type` looks up stats + the sprite sheet name from DRONE_TYPES
-    (util/constants.py) -- only types sharing the idle/walk/fire/melee/
-    destroyed sheet layout (Scarab, Spider) are supported. Subclasses below
-    just pin the type so `Scarab(game, pos)` reads the same as before."""
+    `drone_type` looks up stats + sheet layout from DRONE_TYPES
+    (util/constants.py). Subclasses below just pin the type so
+    `Scarab(game, pos)` reads the same as before."""
 
     def __init__(self, game, position, drone_type: str) -> None:
         super().__init__(name=drone_type.lower())
@@ -36,13 +35,15 @@ class Drone(GameObject):
         self.fire_damage = stats["fire_damage"]
         self.melee_cooldown_ms = stats["melee_cooldown_ms"]
         self.fire_cooldown_ms = stats["fire_cooldown_ms"]
+        self.has_destroyed_clip = stats["destroyed_row"] is not None
 
         self.acceleration = Vector2()
         self.velocity = Vector2()
         self.position = Vector2(position)
 
-        self.rect.size = (SPRITE_SIZE * SCALE_FACTOR, SPRITE_SIZE * SCALE_FACTOR)
-        self.hit_rect = pygame.Rect(0, 0, SPRITE_SIZE * SCALE_FACTOR / 2, SPRITE_SIZE * SCALE_FACTOR / 2)
+        sprite_size = stats["sprite_size"]
+        self.rect.size = (sprite_size * SCALE_FACTOR, sprite_size * SCALE_FACTOR)
+        self.hit_rect = pygame.Rect(0, 0, sprite_size * SCALE_FACTOR / 2, sprite_size * SCALE_FACTOR / 2)
         self.rect.center = self.hit_rect.center = position
 
         self.status = "idle"
@@ -53,8 +54,10 @@ class Drone(GameObject):
         self.add_component(SpriteRenderer2D)
         self.add_component(Animator)
         add_directional_clips(self, ImagePath(drone_type, "robots"),
-                              {"idle": 0, "walking": 1, "fire": 2, "melee": 3})
-        add_death_clip(self, ImagePath(drone_type, "robots"), row=4)
+                              stats["clip_rows"], size=sprite_size)
+        if self.has_destroyed_clip:
+            add_death_clip(self, ImagePath(drone_type, "robots"),
+                           row=stats["destroyed_row"], size=sprite_size)
         self.get_component(Animator).play("idle_0")
 
         game.all_sprites.append(self)
@@ -110,15 +113,21 @@ class Drone(GameObject):
         collide(self, 'y', self.game.walls)
 
     def die(self) -> None:
-        if self.status == "destroyed":
+        if self.status == "destroyed" or not self.active:
             return
-        self.status = "destroyed"
-        self.death_time = pygame.time.get_ticks()
         self.acceleration = Vector2()
         self.velocity = Vector2()
+        if self.has_destroyed_clip:
+            self.status = "destroyed"
+            self.death_time = pygame.time.get_ticks()
+        else:
+            self.active = False  # no destroyed pose to hold -- remove immediately
 
     @override
     def update(self) -> None:
+        if not self.active:
+            return
+
         if self.status == "destroyed":
             if pygame.time.get_ticks() - self.death_time >= DESTROYED_DURATION_MS:
                 self.active = False
@@ -140,5 +149,15 @@ class Spider(Drone):
         super().__init__(game, position, drone_type="Spider")
 
 
+class Hornet(Drone):
+    def __init__(self, game, position) -> None:
+        super().__init__(game, position, drone_type="Hornet")
+
+
+class Wasp(Drone):
+    def __init__(self, game, position) -> None:
+        super().__init__(game, position, drone_type="Wasp")
+
+
 # Spawn-time lookup for map.py, keyed the same as DRONE_TYPES.
-DRONE_CLASSES = {"Scarab": Scarab, "Spider": Spider}
+DRONE_CLASSES = {"Scarab": Scarab, "Spider": Spider, "Hornet": Hornet, "Wasp": Wasp}

@@ -6,7 +6,7 @@ Artificial Chaos is a 2D top-down game prototype built with [pygame](https://www
 
 ![Gameplay](docs/preview.gif)
 
-> **⚠️ Status: unfinished prototype**, not in active development. Core combat and a first-pass win/lose condition now work (see Gameplay below); flag-capture, effects/projectiles, and 2 of 6 soldier classes + 3 of 5 drone types are still unimplemented. It has been migrated onto my shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine (vendored as a git submodule, like [chokepoint](https://github.com/umutcanekinci/chokepoint)): the game loop now extends `pygame_core.Application`, entities are `GameObject`s with `Transform`/`SpriteRenderer2D`/`Animator` components rendered through `pygame_core.Camera`, and asset/spritesheet handling uses `pygame_core` instead of project-local copies.
+> **⚠️ Status: unfinished prototype**, not in active development. Core combat and a first-pass win/lose condition now work (see Gameplay below); flag-capture, effects/projectiles, 2 of 6 soldier classes, and 1 of 5 drone types (Centipede) are still unimplemented. It has been migrated onto my shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine (vendored as a git submodule, like [chokepoint](https://github.com/umutcanekinci/chokepoint)): the game loop now extends `pygame_core.Application`, entities are `GameObject`s with `Transform`/`SpriteRenderer2D`/`Animator` components rendered through `pygame_core.Camera`, and asset/spritesheet handling uses `pygame_core` instead of project-local copies.
 
 ## Gameplay
 
@@ -18,7 +18,7 @@ Move the squad leader around the map. When you get close to a soldier, they join
 |-----------------------|----------------------------------------------------------------------|---------------------------------------------------------------------------|
 | Squad Leader (player) | `SquadLeader.png`  | WASD/arrow movement with friction; leaves footprints; recruits nearby soldiers; rank insignia shown above; fires a sidearm at the nearest drone in range while the left mouse button is held |
 | Soldier               | `Assault-Class.png`, `Sniper-Class.png`, `MachineGunner-Class.png`, `AntiTank-Class.png` | Recruited when the player comes within range, then follows/avoids crowding, and auto-fires at the nearest drone in range instead of following once one's close enough |
-| Drone (Scarab, Spider)| `Scarab.png`, `Spider.png`         | Aggros onto the player/squad within range, chases, then melees or fires depending on distance; holds a destroyed pose before being removed |
+| Drone                 | `Scarab.png`, `Spider.png`, `Hornet.png`, `Wasp.png` | Aggros onto the player/squad within range, chases, then melees or fires depending on distance (Hornet/Wasp are ranged-only, no melee); Scarab/Spider hold a destroyed pose before being removed, Hornet/Wasp are removed immediately (no destroyed frame in their sheets) |
 | Objective flag        | `objective-flag.png`| Pulsing objective marker, placed from the Tiled map — no gameplay effect yet |
 
 ### Controls
@@ -58,7 +58,7 @@ src/gameplay/animation.py Builds Animator clips from pygame_core.SpriteSheet fra
 src/gameplay/combat.py    Shared hitscan combat primitives (find_nearest/ready_to_attack/apply_damage)
 src/gameplay/player.py    Player (squad leader) + Footprint; fights with a sidearm
 src/gameplay/soldier.py   Recruitable soldiers that follow + auto-fight nearby drones
-src/gameplay/robot.py     Drone base class + Scarab/Spider subclasses (aggro/chase/attack AI)
+src/gameplay/robot.py     Drone base class + Scarab/Spider/Hornet/Wasp subclasses (aggro/chase/attack AI)
 src/gameplay/flag.py      Objective flags (animated + pulsing marker)
 src/util/constants.py     Constants (FPS, render size, sprite sizes, durations, ranks, combat tuning)
 src/pygame_core/          Shared engine (git submodule)

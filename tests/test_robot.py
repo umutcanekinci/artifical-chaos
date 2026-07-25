@@ -1,10 +1,12 @@
 from pygame.math import Vector2
 
-from gameplay.robot import DRONE_CLASSES, Drone, Scarab, Spider
+from gameplay.robot import DRONE_CLASSES, Drone, Hornet, Scarab, Spider, Wasp
 from util.constants import AGGRO_RADIUS, DESTROYED_DURATION_MS, DRONE_TYPES
 
 SCARAB = DRONE_TYPES["Scarab"]
 SPIDER = DRONE_TYPES["Spider"]
+HORNET = DRONE_TYPES["Hornet"]
+WASP = DRONE_TYPES["Wasp"]
 
 
 def make_scarab(game, x=0, y=0) -> Scarab:
@@ -77,7 +79,9 @@ def test_prefers_the_nearer_soldier_over_a_farther_player(game):
 
 
 def test_drone_classes_registry_maps_names_to_the_matching_subclass():
-    assert DRONE_CLASSES == {"Scarab": Scarab, "Spider": Spider}
+    assert DRONE_CLASSES == {
+        "Scarab": Scarab, "Spider": Spider, "Hornet": Hornet, "Wasp": Wasp,
+    }
 
 
 def test_spider_uses_its_own_stats_and_is_a_drone(game):
@@ -127,3 +131,53 @@ def test_die_is_idempotent(game, fake_ticks):
     s.die()  # must not reset the timer if already destroyed
 
     assert s.death_time == first_death_time
+
+
+def test_hornet_never_melees_even_at_point_blank_range(game, fake_ticks):
+    # melee_range is 0 for Hornet -- distance <= 0 never happens, so it
+    # should always fire (or chase) instead, never melee.
+    game.player.position = Vector2(1, 0)
+    game.player.hp = 100
+    h = Hornet(game, (0, 0))
+
+    fake_ticks["t"] = HORNET["fire_cooldown_ms"]
+    h.engage()
+
+    assert h.status == "fire"
+    assert game.player.hp == 100 - HORNET["fire_damage"]
+
+
+def test_wasp_has_only_one_animation_frame_set_reused_for_every_status(game):
+    # Wasp's sheet only has one animation row -- every clip_rows entry
+    # points at row 0, so idle/walking/fire/melee are all built from the
+    # same source frames (just distinct clip objects with the same pixels).
+    import pygame
+    from pygame_core.ecs.components.animator import Animator
+
+    w = Wasp(game, (0, 0))
+    clips = w.get_component(Animator).clips
+
+    assert set(clips) == {"idle_0", "idle_1", "walking_0", "walking_1",
+                           "fire_0", "fire_1", "melee_0", "melee_1"}
+    as_bytes = lambda frames: [pygame.image.tobytes(f, "RGBA") for f in frames]
+    assert as_bytes(clips["idle_0"].frames) == as_bytes(clips["fire_0"].frames)
+
+
+def test_hornet_and_wasp_are_removed_immediately_on_death_with_no_destroyed_hold(game):
+    h = Hornet(game, (0, 0))
+    w = Wasp(game, (0, 0))
+
+    h.die()
+    w.die()
+
+    assert h.active is False
+    assert w.active is False
+
+
+def test_hornet_die_is_idempotent(game):
+    h = Hornet(game, (0, 0))
+
+    h.die()
+    h.die()  # must not error on a second call once already inactive
+
+    assert h.active is False
