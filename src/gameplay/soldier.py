@@ -110,7 +110,7 @@ class Soldier(GameObject):
         self.acceleration = Vector2()
         self.status = "fire"
         delta = target.position - self.position
-        if delta.x != 0:
+        if abs(delta.x) > FACING_DEADZONE:
             self.facing = 1 if delta.x < 0 else 0
         self.attack(target, self.fire_damage, self.fire_cooldown_ms)
 

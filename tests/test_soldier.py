@@ -6,7 +6,7 @@ import pytest
 from pygame.math import Vector2
 
 from gameplay.soldier import Soldier
-from util.constants import AVOID_RADIUS, SOLDIER_CLASSES
+from util.constants import AVOID_RADIUS, FACING_DEADZONE, SOLDIER_CLASSES
 
 ASSAULT = SOLDIER_CLASSES["Assault-Class"]
 SNIPER = SOLDIER_CLASSES["Sniper-Class"]
@@ -162,6 +162,21 @@ def test_engage_respects_the_fire_cooldown(game, fake_ticks):
     s.engage()
 
     assert drone.hp == 40 - ASSAULT["fire_damage"]  # still on cooldown
+
+
+def test_engage_facing_does_not_flip_while_crossing_directly_over_a_drone(game):
+    # Regression test: see FACING_DEADZONE in util/constants.py -- delta.x
+    # hovering near 0 used to flip self.facing every frame from ordinary
+    # movement noise while crossing to the other side of a target.
+    game.player = SimpleNamespace(position=Vector2(200, 0))
+    s = Soldier(game, (0, 0))
+    s.facing = 0
+    drone = SimpleNamespace(position=Vector2(FACING_DEADZONE - 1, 100), active=True, hp=40)
+    game.robots.append(drone)
+
+    s.engage()
+
+    assert s.facing == 0  # unchanged -- well within the deadzone
 
 
 def test_soldier_defaults_to_assault_class_stats(game):

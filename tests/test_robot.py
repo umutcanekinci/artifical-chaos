@@ -1,7 +1,7 @@
 from pygame.math import Vector2
 
 from gameplay.robot import DRONE_CLASSES, Drone, Hornet, Scarab, Spider, Wasp
-from util.constants import AGGRO_RADIUS, DESTROYED_DURATION_MS, DRONE_TYPES
+from util.constants import AGGRO_RADIUS, DESTROYED_DURATION_MS, DRONE_TYPES, FACING_DEADZONE
 
 SCARAB = DRONE_TYPES["Scarab"]
 SPIDER = DRONE_TYPES["Spider"]
@@ -65,6 +65,30 @@ def test_melees_within_melee_range(game, fake_ticks):
 
     assert s.status == "melee"
     assert game.player.hp == 100 - SCARAB["melee_damage"]
+
+
+def test_facing_does_not_flip_while_crossing_directly_over_the_target(game):
+    # Regression test: delta.x hovering near 0 while an enemy crosses to the
+    # other side of its target used to flip self.facing every frame from
+    # ordinary movement noise, flickering the mirrored sprite -- see
+    # FACING_DEADZONE in util/constants.py.
+    s = make_scarab(game, x=0, y=0)
+    s.facing = 0
+    game.player.position = Vector2(FACING_DEADZONE - 1, 100)  # almost directly below
+
+    s.engage()
+
+    assert s.facing == 0  # unchanged -- well within the deadzone
+
+
+def test_facing_still_flips_for_a_real_horizontal_difference(game):
+    s = make_scarab(game, x=0, y=0)
+    s.facing = 0
+    game.player.position = Vector2(-(FACING_DEADZONE + 1), 100)
+
+    s.engage()
+
+    assert s.facing == 1
 
 
 def test_prefers_the_nearer_soldier_over_a_farther_player(game):

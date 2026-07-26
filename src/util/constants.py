@@ -18,6 +18,15 @@ MAX_RANK = 15
 DESTROYED_DURATION_MS = 600  # how long a drone's destroyed frame holds before removal
 AGGRO_RADIUS = 400  # drones notice the player/soldiers within this range, all types share it
 
+# Minimum |target.x - self.x| before an attacker flips its sprite facing.
+# Without this, an attacker crossing to the other side of its target has
+# delta.x hover right around 0, flickering sign every frame from ordinary
+# movement noise and flipping the mirrored sprite each time -- visible as
+# jitter. Only matters while actively re-deriving facing from a target
+# position each frame (Drone.engage(), Soldier.engage()); Player.walk()'s
+# facing comes from discrete key state instead, so it isn't affected.
+FACING_DEADZONE = 4
+
 # Per-drone-type stats + sheet layout. `clip_rows` maps a logical animation
 # name to its sheet row -- pointing two names at the same row (e.g. Hornet's
 # "idle"/"walking" both at row 0) is how a type with fewer real animations

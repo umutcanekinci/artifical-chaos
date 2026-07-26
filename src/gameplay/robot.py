@@ -89,7 +89,7 @@ class Drone(GameObject):
             self.status = "walking"
             self.acceleration = delta.normalize() * self.ms
 
-        if delta.x != 0:
+        if abs(delta.x) > FACING_DEADZONE:
             self.facing = 1 if delta.x < 0 else 0
 
     def attack(self, target, damage: int, cooldown_ms: int) -> None:
