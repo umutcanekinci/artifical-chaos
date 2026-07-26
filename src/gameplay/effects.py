@@ -7,7 +7,7 @@ from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
 from pygame_core.ecs.components.animator import Animator
 from pygame_core.sprite_sheet import SpriteSheet
 from pygame_core.image import scale_by
-from pygame_core.asset_path import AssetPath
+from pygame_core.asset_path import ImagePath
 
 from util.constants import *
 from gameplay.animation import add_oneshot_clip
@@ -42,7 +42,7 @@ class TimedEffect(GameObject):
 
 class MuzzleFlash(TimedEffect):
     def __init__(self, game, position, facing: int = 0) -> None:
-        super().__init__(game, position, AssetPath("muzzle-flashes", "Effects"),
+        super().__init__(game, position, ImagePath("muzzle-flashes", "effects"),
                          row=0, frame_count=4, size=8, fps=MUZZLE_FLASH_FPS,
                          facing=facing, name="flash")
 
@@ -51,7 +51,7 @@ class HitSpark(TimedEffect):
     """Metal spark burst -- spawned where a drone takes a hit."""
 
     def __init__(self, game, position, facing: int = 0) -> None:
-        super().__init__(game, position, AssetPath("hit-sparks", "Effects"),
+        super().__init__(game, position, ImagePath("hit-sparks", "effects"),
                          row=0, frame_count=6, size=8, fps=HIT_SPARK_FPS,
                          facing=facing, name="spark")
 
@@ -60,7 +60,7 @@ class HitSpatter(TimedEffect):
     """Blood spatter -- spawned where the player or a soldier takes a hit."""
 
     def __init__(self, game, position, facing: int = 0) -> None:
-        super().__init__(game, position, AssetPath("hit-spatters", "Effects"),
+        super().__init__(game, position, ImagePath("hit-spatters", "effects"),
                          row=0, frame_count=6, size=8, fps=HIT_SPATTER_FPS,
                          facing=facing, name="spatter")
 
@@ -69,7 +69,7 @@ class Explosion(TimedEffect):
     """Drone destruction burst."""
 
     def __init__(self, game, position, facing: int = 0) -> None:
-        super().__init__(game, position, AssetPath("small-explosion", "Effects"),
+        super().__init__(game, position, ImagePath("small-explosion", "effects"),
                          row=0, frame_count=9, size=24, fps=EXPLOSION_FPS,
                          facing=facing, name="boom")
 
@@ -93,7 +93,7 @@ class Tracer(GameObject):
         self.rect.center = self.start
 
         renderer = self.add_component(SpriteRenderer2D)
-        sheet = SpriteSheet.from_path(AssetPath("bullets+plasma", "Projectiles"))
+        sheet = SpriteSheet.from_path(ImagePath("bullets+plasma", "projectiles"))
         renderer.set_image(scale_by(sheet.frame(0, 0, TRACER_SIZE, TRACER_SIZE), SCALE_FACTOR))
 
         game.all_sprites.append(self)
