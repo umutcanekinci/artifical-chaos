@@ -6,12 +6,15 @@ from pygame_core.ecs.game_object import GameObject
 from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
 from pygame_core.ecs.components.animator import Animator
 from pygame_core.asset_path import ImagePath
+from pygame_core.sprite_sheet import SpriteSheet
+from pygame_core.image import scale
 
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
 from gameplay.combat import apply_damage, find_nearest, ready_to_attack
 from gameplay.effects import HitSpark, MuzzleFlash, Tracer
+from gameplay.ui import draw_health_bar
 
 
 class Soldier(GameObject):
@@ -25,7 +28,8 @@ class Soldier(GameObject):
     def __init__(self, game, position, soldier_class: str = "Assault-Class"):
         super().__init__(name="soldier")
         self.game = game
-        self.hp = 100
+        self.max_hp = 100
+        self.hp = self.max_hp
         stats = SOLDIER_CLASSES[soldier_class]
         self.ms = stats["speed"]
         self.fire_range = stats["fire_range"]
@@ -51,6 +55,12 @@ class Soldier(GameObject):
         add_directional_clips(self, ImagePath(soldier_class, "soliders"),
                               {"idle": 0, "walking": 1, "fire": 3})
         self.get_component(Animator).play("idle_0")
+
+        marker_sheet = SpriteSheet.from_path(ImagePath("selection-circles", "ui"))
+        marker_frame = marker_sheet.frame(RECRUITED_MARKER_COL, RECRUITED_MARKER_ROW,
+                                          RECRUITED_MARKER_SOURCE_SIZE, RECRUITED_MARKER_SOURCE_SIZE)
+        self.recruited_marker_image = scale(marker_frame,
+                                            (RECRUITED_MARKER_FINAL_SIZE, RECRUITED_MARKER_FINAL_SIZE))
 
         game.all_sprites.append(self)
         game.soldiers.append(self)
@@ -130,3 +140,15 @@ class Soldier(GameObject):
 
     def die(self):
         self.active = False
+
+    def draw_health(self, surface, camera) -> None:
+        draw_health_bar(surface, camera, self.rect, self.hp, self.max_hp)
+
+    def draw_recruited_marker(self, surface, camera) -> None:
+        if not self.is_in_army:
+            return
+        image = camera.scale_image(self.recruited_marker_image)
+        world_pos = (self.rect.centerx, self.rect.centery + RECRUITED_MARKER_Y_OFFSET)
+        center = camera.world_to_screen(world_pos)
+        rect = image.get_rect(center=(center.x, center.y))
+        surface.blit(image, rect)

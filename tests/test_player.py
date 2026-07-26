@@ -14,11 +14,18 @@ def press(game, *keys) -> None:
 
 
 class FakeCamera:
-    """screen_to_world as an identity -- Player.aim_at_mouse() only needs
-    *some* world position to compare against, not real camera math (already
-    covered by tests/test_camera.py)."""
+    """screen_to_world/world_to_screen/scaled as identities/no-ops --
+    Player.aim_at_mouse()/draw_health() only need *some* consistent
+    position math, not real camera projection (already covered by
+    tests/test_camera.py)."""
     def screen_to_world(self, pos):
         return Vector2(pos)
+
+    def world_to_screen(self, pos):
+        return Vector2(pos)
+
+    def scaled(self, value):
+        return value
 
 
 def make_shooting_player(game, x=0.0, y=0.0) -> Player:
@@ -277,3 +284,32 @@ def test_update_does_nothing_once_dead(game, monkeypatch):
 
     assert p.position == start_position
     assert p.status == "death"
+
+
+def test_health_fraction_at_full_hp(game):
+    p = make_shooting_player(game)
+
+    assert p.health_fraction() == 1.0
+
+
+def test_health_fraction_scales_with_damage(game):
+    p = make_shooting_player(game)
+    p.hp = 25
+
+    assert p.health_fraction() == 0.25
+
+
+def test_health_fraction_does_not_go_negative(game):
+    p = make_shooting_player(game)
+    p.hp = -30  # apply_damage can overshoot past 0 on a killing blow
+
+    assert p.health_fraction() == 0.0
+
+
+def test_draw_health_does_not_error_at_various_hp_levels(game):
+    p = make_shooting_player(game)
+    surface = pygame.Surface((100, 100))
+
+    for hp in (100, 50, 20, 0):
+        p.hp = hp
+        p.draw_health(surface, game.camera)  # must not raise

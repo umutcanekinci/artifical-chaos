@@ -1,3 +1,4 @@
+import pygame
 from pygame.math import Vector2
 
 from gameplay.robot import DRONE_CLASSES, Drone, Hornet, Scarab, Spider, Wasp
@@ -228,3 +229,29 @@ def test_hornet_die_is_idempotent(game):
     h.die()  # must not error on a second call once already inactive
 
     assert h.active is False
+
+
+class FakeCamera:
+    def world_to_screen(self, pos):
+        return Vector2(pos)
+
+    def scaled(self, value):
+        return value
+
+
+def test_draw_health_does_not_error_when_full_or_damaged(game):
+    s = make_scarab(game)
+    surface = pygame.Surface((100, 100))
+
+    s.draw_health(surface, FakeCamera())  # full hp -- no-op, must not raise
+
+    s.hp = 10
+    s.draw_health(surface, FakeCamera())  # damaged -- draws, must not raise
+
+
+def test_draw_health_is_skipped_once_destroyed(game, fake_ticks):
+    s = make_scarab(game)
+    s.die()
+    surface = pygame.Surface((100, 100))
+
+    s.draw_health(surface, FakeCamera())  # must not draw a bar over a wreck -- must not raise either way

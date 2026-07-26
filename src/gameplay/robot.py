@@ -12,6 +12,7 @@ from gameplay.collision import collide
 from gameplay.animation import add_directional_clips, add_oneshot_clip
 from gameplay.combat import apply_damage, find_nearest, ready_to_attack
 from gameplay.effects import Explosion, HitSpatter, MuzzleFlash, Tracer
+from gameplay.ui import draw_health_bar
 
 
 class Drone(GameObject):
@@ -28,7 +29,8 @@ class Drone(GameObject):
         super().__init__(name=drone_type.lower())
         self.game = game
         stats = DRONE_TYPES[drone_type]
-        self.hp = stats["hp"]
+        self.max_hp = stats["hp"]
+        self.hp = self.max_hp
         self.ms = stats["speed"]
         self.melee_range = stats["melee_range"]
         self.fire_range = stats["fire_range"]
@@ -143,6 +145,11 @@ class Drone(GameObject):
 
         self.get_component(Animator).play(f"{self.status}_{self.facing}")
         super().update()
+
+    def draw_health(self, surface, camera) -> None:
+        if self.status == "destroyed":  # no bar over a wreck
+            return
+        draw_health_bar(surface, camera, self.rect, self.hp, self.max_hp)
 
 
 class Scarab(Drone):

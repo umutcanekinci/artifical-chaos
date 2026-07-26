@@ -218,3 +218,46 @@ def test_sniper_fires_at_a_target_beyond_the_assault_fire_range(game, fake_ticks
 
     assert s.status == "fire"
     assert drone.hp == 100 - SNIPER["fire_damage"]
+
+
+class FakeCamera:
+    def world_to_screen(self, pos):
+        return Vector2(pos)
+
+    def scaled(self, value):
+        return value
+
+    def scale_image(self, image):
+        return image
+
+
+def test_draw_health_does_not_error_when_full_or_damaged(game):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0))
+    surface = pygame.Surface((100, 100))
+
+    s.draw_health(surface, FakeCamera())  # full hp -- no-op, must not raise
+
+    s.hp = 40
+    s.draw_health(surface, FakeCamera())  # damaged -- draws, must not raise
+
+
+def test_draw_recruited_marker_is_a_noop_when_not_in_army(game):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0))
+    surface = pygame.Surface((100, 100))
+    surface.fill((5, 5, 5))
+
+    s.draw_recruited_marker(surface, FakeCamera())
+
+    assert surface.get_at((50, 50))[:3] == (5, 5, 5)  # untouched
+
+
+def test_draw_recruited_marker_draws_once_recruited(game):
+    game.player = SimpleNamespace(position=Vector2(0, 0))
+    s = Soldier(game, (0, 0))
+    s.add_to_army()
+    surface = pygame.Surface((100, 100))
+    surface.fill((5, 5, 5))
+
+    s.draw_recruited_marker(surface, FakeCamera())  # must not raise

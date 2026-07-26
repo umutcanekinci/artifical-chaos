@@ -14,6 +14,7 @@ from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
 from gameplay.combat import apply_damage, find_nearest, ready_to_attack
 from gameplay.effects import HitSpark, MuzzleFlash, Tracer
+from gameplay.ui import draw_health_bar
 
 
 class Footprint(GameObject):
@@ -51,7 +52,8 @@ class Player(GameObject):
     def __init__(self, game, position):
         super().__init__(name="player")
         self.game = game
-        self.hp = 100
+        self.max_hp = 100
+        self.hp = self.max_hp
         self.ms = 100
         self.rank = 0
         self.acceleration = Vector2()
@@ -78,7 +80,7 @@ class Player(GameObject):
 
         self.rank_position = Vector2(0, RANK_SIZE * SCALE_FACTOR)
         self.rank_rect = pygame.Rect(0, 0, RANK_SIZE * SCALE_FACTOR, RANK_SIZE * SCALE_FACTOR)
-        self.rank_sheet = SpriteSheet.from_path(ImagePath("squad-insignia", "UI"))
+        self.rank_sheet = SpriteSheet.from_path(ImagePath("squad-insignia", "ui"))
         self.rank_image = self.get_rank_image()
 
         game.all_sprites.append(self)
@@ -195,3 +197,9 @@ class Player(GameObject):
         self.rank_rect.center = self.position - self.rank_position
         topleft = camera.world_to_screen(self.rank_rect.topleft)
         surface.blit(camera.scale_image(self.rank_image), (topleft.x, topleft.y))
+
+    def health_fraction(self) -> float:
+        return max(0.0, self.hp) / self.max_hp
+
+    def draw_health(self, surface, camera) -> None:
+        draw_health_bar(surface, camera, self.rect, self.hp, self.max_hp, always=True)

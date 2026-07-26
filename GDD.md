@@ -66,10 +66,11 @@ a time, while the drones try to stop you.
 
 Implemented today: 8-directional movement (WASD/arrows) with friction,
 footprint trail while walking, recruits soldiers within 50px, rank
-(`rank_up()`, insignia sprite, no gameplay effect yet), 100 HP, a mouse-aimed
-sidearm (hold left click to fire at the nearest drone in range — see Combat),
-and death (HP hits 0 → death animation plays, game freezes on a GAME OVER
-screen).
+(`rank_up()`, insignia sprite, no gameplay effect yet), 100 HP shown as an
+always-visible overhead bar (`gameplay/ui.py`; green/orange/red by
+threshold, not a smooth gradient), a mouse-aimed sidearm (hold left click to
+fire at the nearest drone in range — see Combat), and death (HP hits 0 →
+death animation plays, game freezes on a GAME OVER screen).
 
 Not implemented: any effect from rank beyond the icon.
 
@@ -101,6 +102,15 @@ identical.
 
 Per-class tuning is first-pass, not balanced (same caveat as drone/player
 combat numbers — see `util/constants.py`).
+
+Recruited soldiers fight fully autonomously — there's no way to direct them
+at a specific target or location, by design (see Core pillars: "no
+individual soldier micromanagement"). Each just fights whatever's nearest
+to *itself*, not the player. Since the recruit trigger (walking within 50px
+of a dormant soldier) is easy to trigger without noticing, a recruited
+soldier now shows a green ring underneath it
+(`Soldier.draw_recruited_marker()`, `assets/images/ui/selection-circles.png`)
+so it's clear at a glance which soldiers are actually in the squad.
 
 ## Enemies: Drones
 
@@ -151,15 +161,24 @@ implemented either way; `find_nearest` is currently only ever called with an
 opposing-faction candidate list, so there's no accidental friendly fire to
 worry about, but it's also not a deliberate design decision yet.
 
+### HP bars
+
+**Implemented** (`gameplay/ui.py`): every combatant now shows damage taken,
+not just the player. Soldiers and drones only show a bar once they've taken
+their first hit (an undamaged unit doesn't need one cluttering the screen);
+the player's own bar is always visible instead, since your own HP is worth
+knowing proactively, not just after you've already been hit. Same
+green/orange/red threshold coloring as the player's bar.
+
 ### Effects & projectiles
 
 **Implemented** (`gameplay/effects.py`), spawned directly from each
 attacker's `attack()`/`die()` — purely cosmetic, layered on top of the
 already-instant hit resolution above; none of it gates damage or timing.
-`assets/Effects/` and `assets/Projectiles/` had no frame-layout docs (unlike
-the robot/soldier sheets), so each sheet used here was confirmed by
-rendering it with a grid overlay and inspecting it, same approach as
-Hornet/Wasp.
+`assets/images/effects/` and `assets/images/projectiles/` had no
+frame-layout docs (unlike the robot/soldier sheets), so each sheet used
+here was confirmed by rendering it with a grid overlay and inspecting it,
+same approach as Hornet/Wasp.
 
 - **MuzzleFlash** (`muzzle-flashes.png`, 4 frames @8px) at the attacker, and
   **Tracer** (`bullets+plasma.png` frame 0, a small non-directional dot
@@ -186,29 +205,41 @@ above).
 
 ## Objectives / win-lose
 
-`Flag` entities still spawn from the Tiled map's object layer and pulse, but
-`flag.py` has no logic beyond the pulse animation — reaching one still does
-nothing. **[RESOLVED — v1 win condition]**: "defeat all drones."
-`Game._check_end_conditions()` (`src/app/game.py`) latches
-`_robots_ever_present` the first time any drone exists, then declares
-VICTORY once the robots list is empty again (this guards against a false
-victory before any drones have spawned). Player death is checked first and
-takes priority if both conditions occur simultaneously, ending the run with
-GAME OVER instead. Both end states freeze the update loop and draw a
-translucent overlay with the end message (`_draw_end_message()`).
+**[RESOLVED — win condition, replacing the earlier "defeat all drones"
+placeholder]**: hold every flag until it's captured. `Flag`
+(`gameplay/flag.py`) now tracks `progress` (0–100) and `captured`: it fills
+while the player or an in-army soldier is within `FLAG_CAPTURE_RADIUS` and
+no drone is within the wider `FLAG_CONTEST_RADIUS`, and decays (never below
+0) while a drone is contesting it, even if it's also held — you can't tank
+next to a flag while its guardian is still alive. Every flag spawns with a
+drone standing directly on it (`Map.spawn_objects()`), so clearing that
+guardian is a natural prerequisite, not a bolted-on extra rule; this also
+means "defeat all drones" still mostly gets you there, it just isn't
+sufficient by itself anymore — you still have to walk up to and hold each
+flag. A capture is permanent (no decay once `captured`). `draw_pulse()`
+stops pulsing a captured flag entirely, and while progressing draws an
+elliptical fill (`gameplay/ui.draw_radial_progress`) growing clockwise
+behind the flag itself, centered on it — layered furthest back, so the
+pulse ring and the flag's own sprite both draw in front of it. The
+ellipse's size and aspect ratio match the flag's own pulse animation at
+its largest frame, not an arbitrary circle — measured directly off
+`objective-pulse.png` rather than eyeballed. The fill is semi-transparent
+rather than solid, so it doesn't fully hide the tile underneath.
 
-Flag-capture as a richer/alternate win condition (hold a flag while drones
-contest it) is still deferred — "defeat all drones" was deliberately chosen
-as the simpler placeholder to ship a playable loop first, per the build
-order below.
+`Game._check_end_conditions()` (`src/app/game.py`) declares VICTORY once
+`self.flags and all(flag.captured for flag in self.flags)`. Player death is
+checked first and takes priority if both conditions occur simultaneously,
+ending the run with GAME OVER instead. Both end states freeze the update
+loop and draw a translucent overlay with the end message
+(`_draw_end_message()`).
 
 ## World
 
 Single Tiled map today (`assets/images/tileset/tiledmap.tmx`), fixed camera
-follow, no fog of war, no minimap. `Obstacles and Objects` sheet is unused
-beyond the invisible collision walls already spawned from "wall" objects in
-the map — there may be room to make some of those visible/decorative instead
-of invisible-only.
+follow, no fog of war, no minimap. `assets/images/obstacles_and_objects/`
+is unused beyond the invisible collision walls already spawned from "wall"
+objects in the map — there may be room to make some of those
+visible/decorative instead of invisible-only.
 
 ## Content inventory (what's available vs. wired up)
 
@@ -248,7 +279,8 @@ of invisible-only.
    (see Effects & projectiles above). Still open within this bucket: swap
    in `laser-flash.png` for Hornet/Wasp's muzzle flash, lingering
    smoke/scorch decals, and impact marks on walls (`bullet-impacts.png`).
-8. **Next up:** the rest of polish (visible obstacles, RadioOperator
+8. ~~Flag-capture as a richer win condition~~ **done** — replaces "defeat
+   all drones" outright (see Objectives / win-lose above).
+9. **Next up:** the rest of polish (visible obstacles, RadioOperator
    support ability, Grenadier AoE + `Grenade.png`/`RPG-round.png`, rank
-   bonuses, flag-capture as a richer win condition, Centipede's segmented
-   body).
+   bonuses, Centipede's segmented body).

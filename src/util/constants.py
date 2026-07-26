@@ -12,6 +12,67 @@ FRICTION = 0.1
 RANK_SIZE = 24
 MAX_RANK = 15
 
+# Flag capture (gameplay/flag.py) -- the v1 win condition ("defeat all
+# drones") has been replaced by this richer one: hold every flag until it's
+# fully captured. A flag can only progress while the player or an in-army
+# soldier is within FLAG_CAPTURE_RADIUS *and* no drone is within the wider
+# FLAG_CONTEST_RADIUS -- since every flag spawns with a drone standing
+# right on it (see Map.spawn_objects), clearing that guardian first is a
+# natural prerequisite, not a separate rule. First-pass numbers, not tuned.
+FLAG_CAPTURE_RADIUS = 100
+FLAG_CONTEST_RADIUS = 150
+FLAG_CAPTURE_RATE   = 20  # % per second while held and uncontested
+FLAG_DECAY_RATE     = 15  # % per second lost while contested
+
+# Radii of the radial capture-progress fill (gameplay/ui.py's
+# draw_radial_progress), drawn behind the flag/pulse sprites and centered
+# on the flag -- unrelated to FLAG_CAPTURE_RADIUS above (that's a gameplay
+# range in world units around the flag; this is purely the visual size).
+# Matched to the flag's own pulse animation rather than picked freehand:
+# assets/images/ui/objective-pulse.png's largest actually-used frame (index
+# 5 of the 6 Flag.__init__ loads) has a get_bounding_rect() of 60x41 source
+# px -- an ellipse, not a circle -- so the capture fill uses that same
+# aspect ratio and max size (halved for radius, x3 for SCALE_FACTOR) rather
+# than an arbitrary circle that wouldn't match the pulse ring it sits behind.
+FLAG_CAPTURE_ELLIPSE_RX = 60 * SCALE_FACTOR // 2
+FLAG_CAPTURE_ELLIPSE_RY = 41 * SCALE_FACTOR // 2
+FLAG_CAPTURE_FILL_ALPHA = 180  # out of 255 -- a bit see-through, not solid
+
+# HP bar (gameplay/ui.py's draw_health_bar) -- shared by Player, Soldier,
+# and Drone, drawn overhead. The player's own bar is always visible (HP is
+# the one stat where "you'd have to be told to go check" is actually a
+# problem, unlike rank); Soldier/Drone only draw theirs once they've taken
+# damage, so a screen full of undamaged units doesn't turn into a wall of
+# full bars. Color tiers, not a smooth gradient, for a glance-able "how
+# worried should I be" signal. Anchored off rect.top (not rect.centery like
+# Flag's capture bar) -- these are tightly-cropped character/creature
+# sprites, not the flag's padded pulse-ring asset, so rect.top tracks the
+# visible sprite edge closely enough to just use directly.
+HP_BAR_WIDTH    = 40
+HP_BAR_HEIGHT   = 6
+HP_BAR_GAP      = 10  # world-space px between rect.top and the bar
+HP_BAR_HEALTHY  = (80, 220, 80)   # >= 60% hp
+HP_BAR_HURT     = (230, 180, 60)  # 30-60% hp
+HP_BAR_CRITICAL = (220, 60, 60)   # < 30% hp
+
+# Recruited-soldier marker (Soldier.draw_recruited_marker) -- a ring drawn
+# under any Soldier with is_in_army=True, so it's visually obvious which
+# soldiers actually joined the squad (recruiting only triggers within 50px,
+# easy to walk past without noticing) vs. which are still standing there
+# dormant. assets/images/ui/selection-circles.png is a 2-col x 5-row grid
+# of 24x24 frames (row 0 blank/unused, then green/red/blue/orange, each
+# with a small/large column) -- row 1 col 0 is the small green ring.
+# RECRUITED_MARKER_FINAL_SIZE is the on-screen diameter -- scaled to this
+# directly (not just by SCALE_FACTOR) since the raw 24px source frame reads
+# too large next to a 48px (16px * SCALE_FACTOR) soldier sprite.
+# RECRUITED_MARKER_Y_OFFSET nudges it down from rect.centery so it sits
+# under the sprite's feet instead of at its geometric (torso-height) center.
+RECRUITED_MARKER_ROW = 1
+RECRUITED_MARKER_COL = 0
+RECRUITED_MARKER_SOURCE_SIZE = 24
+RECRUITED_MARKER_FINAL_SIZE = 40
+RECRUITED_MARKER_Y_OFFSET = 14
+
 # Combat -- ranges/damage are first-pass numbers, not balanced yet (see GDD.md).
 # "Hitscan" throughout this codebase means an instant nearest-target-in-range
 # check (gameplay/combat.py's find_nearest), not a directional raycast.
@@ -118,14 +179,14 @@ SOLDIER_CLASSES = {
 # Animator/renderer. Frame counts/sizes were confirmed by rendering each
 # sheet with a grid overlay and inspecting it (no info.txt for these,
 # unlike the robot/soldier sheets). fps values are first-pass, not tuned.
-MUZZLE_FLASH_FPS = 30    # assets/Effects/muzzle-flashes.png, 4 frames @ 8px
-HIT_SPARK_FPS    = 24    # assets/Effects/hit-sparks.png, 6 frames @ 8px -- drone hits
-HIT_SPATTER_FPS  = 24    # assets/Effects/hit-spatters.png, 6 frames @ 8px -- player/soldier hits
-EXPLOSION_FPS    = 20    # assets/Effects/small-explosion.png, 9 frames @ 24px -- drone destruction
+MUZZLE_FLASH_FPS = 30    # assets/images/effects/muzzle-flashes.png, 4 frames @ 8px
+HIT_SPARK_FPS    = 24    # assets/images/effects/hit-sparks.png, 6 frames @ 8px -- drone hits
+HIT_SPATTER_FPS  = 24    # assets/images/effects/hit-spatters.png, 6 frames @ 8px -- player/soldier hits
+EXPLOSION_FPS    = 20    # assets/images/effects/small-explosion.png, 9 frames @ 24px -- drone destruction
 
 # Tracer (gameplay/effects.py) is a visual-only "bullet" that flies from
 # attacker to target -- damage is already applied by the time it spawns
 # (hitscan resolves instantly, see gameplay/combat.py), so its only job is
 # to read on-screen; it never gates anything.
-TRACER_SIZE        = 8   # assets/Projectiles/bullets+plasma.png frame 0
+TRACER_SIZE        = 8   # assets/images/projectiles/bullets+plasma.png frame 0
 TRACER_DURATION_MS = 90

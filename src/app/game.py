@@ -30,11 +30,11 @@ class Game(Application):
         self.player = Player(self, self.map.rect.center)
 
         self.mouse.set_cursor_visible(False)
-        self.cursor = load_image(ImagePath("mouse-pointer", "UI"))
+        self.cursor = load_image(ImagePath("mouse-pointer", "ui"))
 
-        # Win/lose: v1 conditions only (see GDD.md) -- flag-capture and any
-        # richer lose state are explicitly deferred.
-        self._robots_ever_present = False
+        # Win/lose (see GDD.md): victory is holding every Flag until it's
+        # captured (gameplay/flag.py) -- richer lose states beyond player
+        # death are still deferred.
         self.game_over = False
         self.end_message = ""
         self._end_font = pygame.font.SysFont("Arial", 96, bold=True)
@@ -55,13 +55,10 @@ class Game(Application):
             group[:] = [obj for obj in group if obj.active]
 
     def _check_end_conditions(self) -> None:
-        if self.robots:
-            self._robots_ever_present = True
-
         if self.player.is_dead:
             self.game_over = True
             self.end_message = "GAME OVER"
-        elif self._robots_ever_present and not self.robots:
+        elif self.flags and all(flag.captured for flag in self.flags):
             self.game_over = True
             self.end_message = "VICTORY"
 
@@ -75,10 +72,19 @@ class Game(Application):
         for flag in self.flags:
             flag.draw_pulse(self.window, self.camera)
 
+        for soldier in self.soldiers:
+            soldier.draw_recruited_marker(self.window, self.camera)
+
         for obj in self.all_sprites:
             self.camera.draw(self.window, obj)
 
+        for soldier in self.soldiers:
+            soldier.draw_health(self.window, self.camera)
+        for robot in self.robots:
+            robot.draw_health(self.window, self.camera)
+
         self.player.draw_rank(self.window, self.camera)
+        self.player.draw_health(self.window, self.camera)
         self.window.blit(self.cursor, self.mouse.position)
 
         if self.game_over:
