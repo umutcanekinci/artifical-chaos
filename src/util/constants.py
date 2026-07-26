@@ -111,3 +111,21 @@ SOLDIER_CLASSES = {
         "speed": 50, "fire_range": 200, "fire_damage": 35, "fire_cooldown_ms": 1500,
     },
 }
+
+# Effects (gameplay/effects.py) -- purely cosmetic one-shot animations
+# spawned by attack()/die() call sites; gameplay/combat.py itself stays
+# side-effect-free so combat logic is still testable without a real
+# Animator/renderer. Frame counts/sizes were confirmed by rendering each
+# sheet with a grid overlay and inspecting it (no info.txt for these,
+# unlike the robot/soldier sheets). fps values are first-pass, not tuned.
+MUZZLE_FLASH_FPS = 30    # assets/Effects/muzzle-flashes.png, 4 frames @ 8px
+HIT_SPARK_FPS    = 24    # assets/Effects/hit-sparks.png, 6 frames @ 8px -- drone hits
+HIT_SPATTER_FPS  = 24    # assets/Effects/hit-spatters.png, 6 frames @ 8px -- player/soldier hits
+EXPLOSION_FPS    = 20    # assets/Effects/small-explosion.png, 9 frames @ 24px -- drone destruction
+
+# Tracer (gameplay/effects.py) is a visual-only "bullet" that flies from
+# attacker to target -- damage is already applied by the time it spawns
+# (hitscan resolves instantly, see gameplay/combat.py), so its only job is
+# to read on-screen; it never gates anything.
+TRACER_SIZE        = 8   # assets/Projectiles/bullets+plasma.png frame 0
+TRACER_DURATION_MS = 90

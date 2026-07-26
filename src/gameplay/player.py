@@ -13,6 +13,7 @@ from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
 from gameplay.combat import apply_damage, find_nearest, ready_to_attack
+from gameplay.effects import HitSpark, MuzzleFlash, Tracer
 
 
 class Footprint(GameObject):
@@ -149,6 +150,9 @@ class Player(GameObject):
         if not ready_to_attack(now, self.last_attack_time, cooldown_ms):
             return
         self.last_attack_time = now
+        MuzzleFlash(self.game, self.position, self.facing)
+        Tracer(self.game, self.position, target.position)
+        HitSpark(self.game, target.position)
         if apply_damage(target, damage):
             target.die()
 

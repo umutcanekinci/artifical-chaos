@@ -54,6 +54,12 @@ def test_fires_when_in_fire_range_but_outside_melee_range(game, fake_ticks):
     assert s.acceleration == Vector2(0, 0)
     assert game.player.hp < 100
 
+    from gameplay.effects import HitSpatter, MuzzleFlash, Tracer
+    kinds = [type(o) for o in game.all_sprites]
+    assert MuzzleFlash in kinds
+    assert Tracer in kinds
+    assert HitSpatter in kinds
+
 
 def test_melees_within_melee_range(game, fake_ticks):
     game.player.position = Vector2(SCARAB["melee_range"] - 5, 0)
@@ -65,6 +71,23 @@ def test_melees_within_melee_range(game, fake_ticks):
 
     assert s.status == "melee"
     assert game.player.hp == 100 - SCARAB["melee_damage"]
+
+    # Melee has no gun to flash and nothing to fly across the map -- only
+    # a hit effect at the target, no MuzzleFlash/Tracer (see Drone.attack()).
+    from gameplay.effects import HitSpatter, MuzzleFlash, Tracer
+    kinds = [type(o) for o in game.all_sprites]
+    assert MuzzleFlash not in kinds
+    assert Tracer not in kinds
+    assert HitSpatter in kinds
+
+
+def test_die_spawns_an_explosion(game, fake_ticks):
+    from gameplay.effects import Explosion
+
+    s = make_scarab(game)
+    s.die()
+
+    assert any(isinstance(o, Explosion) for o in game.all_sprites)
 
 
 def test_facing_does_not_flip_while_crossing_directly_over_the_target(game):

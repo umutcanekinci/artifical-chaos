@@ -6,11 +6,11 @@ Artificial Chaos is a 2D top-down game prototype built with [pygame](https://www
 
 ![Gameplay](docs/preview.gif)
 
-> **⚠️ Status: unfinished prototype**, not in active development. Core combat and a first-pass win/lose condition now work (see Gameplay below); flag-capture, effects/projectiles, 2 of 6 soldier classes, and 1 of 5 drone types (Centipede) are still unimplemented. It has been migrated onto my shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine (vendored as a git submodule, like [chokepoint](https://github.com/umutcanekinci/chokepoint)): the game loop now extends `pygame_core.Application`, entities are `GameObject`s with `Transform`/`SpriteRenderer2D`/`Animator` components rendered through `pygame_core.Camera`, and asset/spritesheet handling uses `pygame_core` instead of project-local copies.
+> **⚠️ Status: unfinished prototype**, not in active development. Core combat, a first pass of effects, and a first-pass win/lose condition now work (see Gameplay below); flag-capture, most of the effects/projectiles sheets, 2 of 6 soldier classes, and 1 of 5 drone types (Centipede) are still unimplemented. It has been migrated onto my shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine (vendored as a git submodule, like [chokepoint](https://github.com/umutcanekinci/chokepoint)): the game loop now extends `pygame_core.Application`, entities are `GameObject`s with `Transform`/`SpriteRenderer2D`/`Animator` components rendered through `pygame_core.Camera`, and asset/spritesheet handling uses `pygame_core` instead of project-local copies.
 
 ## Gameplay
 
-Move the squad leader around the map. When you get close to a soldier, they join your army and start following you while spreading out to avoid crowding each other. Hold the left mouse button to fire your sidearm at the nearest drone in range. Recruited soldiers auto-fight nearby drones too. Drones aggro onto the player or squad within range and melee or fire back. Defeat every drone on the map to win; the Squad Leader dying ends the run. Walking leaves a trail of fading footprints, and your rank insignia is shown next to the player. Objective flags pulse on the map but don't do anything yet — see GDD.md's build order for what's next.
+Move the squad leader around the map. When you get close to a soldier, they join your army and start following you while spreading out to avoid crowding each other. Hold the left mouse button to fire your sidearm at the nearest drone in range — ranged attacks flash a muzzle, a tracer flies to the target, and a spark/blood-spatter hits home; drones burst into an explosion on death. Recruited soldiers auto-fight nearby drones too. Drones aggro onto the player or squad within range and melee or fire back. Defeat every drone on the map to win; the Squad Leader dying ends the run. Walking leaves a trail of fading footprints, and your rank insignia is shown next to the player. Objective flags pulse on the map but don't do anything yet — see GDD.md's build order for what's next.
 
 ### Entities
 
@@ -56,6 +56,7 @@ src/gameplay/camera.py    FollowCamera — pygame_core.Camera plus a follow() he
 src/gameplay/collision.py AABB Collide resolution against the wall list
 src/gameplay/animation.py Builds Animator clips from pygame_core.SpriteSheet frames
 src/gameplay/combat.py    Shared hitscan combat primitives (find_nearest/ready_to_attack/apply_damage)
+src/gameplay/effects.py   Cosmetic combat VFX (muzzle flash, hit spark/spatter, explosion, bullet tracer)
 src/gameplay/player.py    Player (squad leader) + Footprint; fights with a sidearm
 src/gameplay/soldier.py   Recruitable soldiers that follow + auto-fight nearby drones
 src/gameplay/robot.py     Drone base class + Scarab/Spider/Hornet/Wasp subclasses (aggro/chase/attack AI)

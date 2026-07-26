@@ -9,8 +9,9 @@ from pygame_core.asset_path import ImagePath
 
 from util.constants import *
 from gameplay.collision import collide
-from gameplay.animation import add_directional_clips, add_death_clip
+from gameplay.animation import add_directional_clips, add_oneshot_clip
 from gameplay.combat import apply_damage, find_nearest, ready_to_attack
+from gameplay.effects import Explosion, HitSpatter, MuzzleFlash, Tracer
 
 
 class Drone(GameObject):
@@ -56,8 +57,8 @@ class Drone(GameObject):
         add_directional_clips(self, ImagePath(drone_type, "robots"),
                               stats["clip_rows"], size=sprite_size)
         if self.has_destroyed_clip:
-            add_death_clip(self, ImagePath(drone_type, "robots"),
-                           row=stats["destroyed_row"], size=sprite_size)
+            add_oneshot_clip(self, ImagePath(drone_type, "robots"),
+                             row=stats["destroyed_row"], size=sprite_size)
         self.get_component(Animator).play("idle_0")
 
         game.all_sprites.append(self)
@@ -97,6 +98,10 @@ class Drone(GameObject):
         if not ready_to_attack(now, self.last_attack_time, cooldown_ms):
             return
         self.last_attack_time = now
+        if self.status == "fire":  # melee has no muzzle/tracer -- no gun to flash
+            MuzzleFlash(self.game, self.position, self.facing)
+            Tracer(self.game, self.position, target.position)
+        HitSpatter(self.game, target.position)
         if apply_damage(target, damage):
             target.die()
 
@@ -117,6 +122,7 @@ class Drone(GameObject):
             return
         self.acceleration = Vector2()
         self.velocity = Vector2()
+        Explosion(self.game, self.position)
         if self.has_destroyed_clip:
             self.status = "destroyed"
             self.death_time = pygame.time.get_ticks()

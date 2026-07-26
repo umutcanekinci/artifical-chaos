@@ -144,16 +144,45 @@ by `Scarab`, `Player`, and `Soldier`):
 nearest-target-in-range check (`find_nearest`), **not** a directional
 raycast. A drone/player/soldier "fires" at whichever valid target is closest
 within its range, regardless of facing — facing is cosmetic (aim animation)
-only, never gates whether a shot lands. Simulated projectile objects using
-the unused `assets/Projectiles/` sheets (bullets, grenade, RPG round) are
-deferred to a later pass; `Effects/` (muzzle flash, hit sparks, explosions)
-are similarly unused and deferred as visual polish on top of the existing
-hit resolution.
+only, never gates whether a shot lands.
 
 **[OPEN]**: friendly fire between drones, or between soldiers — not
 implemented either way; `find_nearest` is currently only ever called with an
 opposing-faction candidate list, so there's no accidental friendly fire to
 worry about, but it's also not a deliberate design decision yet.
+
+### Effects & projectiles
+
+**Implemented** (`gameplay/effects.py`), spawned directly from each
+attacker's `attack()`/`die()` — purely cosmetic, layered on top of the
+already-instant hit resolution above; none of it gates damage or timing.
+`assets/Effects/` and `assets/Projectiles/` had no frame-layout docs (unlike
+the robot/soldier sheets), so each sheet used here was confirmed by
+rendering it with a grid overlay and inspecting it, same approach as
+Hornet/Wasp.
+
+- **MuzzleFlash** (`muzzle-flashes.png`, 4 frames @8px) at the attacker, and
+  **Tracer** (`bullets+plasma.png` frame 0, a small non-directional dot
+  that lerps attacker → target over `TRACER_DURATION_MS`) — both only for
+  ranged hits, not melee (no gun to flash, nothing to fly across the map).
+- **HitSpark** (`hit-sparks.png`, 6 frames @8px, metal spark) at the target
+  when a drone lands a hit; **HitSpatter** (`hit-spatters.png`, 6 frames
+  @8px, blood) when the player or a soldier lands a hit — the asset pack's
+  own art already splits "hitting a robot" vs. "hitting a human" this way,
+  which happens to line up exactly with this game's two factions.
+- **Explosion** (`small-explosion.png`, 9 frames @24px) at a drone's
+  position on death, for all four drone types — this doubles as the
+  "destroyed" visual for Hornet/Wasp, which don't have their own destroyed
+  sheet frame (see Enemies above).
+
+Still unused: `laser-flash.png` (a rounder energy-weapon flash — could
+replace `muzzle-flashes.png` for Hornet/Wasp specifically, since they're
+described as energy-based, not gunpowder), `big-explosion.png`/
+`big-fragments.png`/`small-fragments.png`/`smoke.png`/`bullet-impacts.png`
+(debris/smoke lingering after an explosion, or ground scorch marks —
+polish, not required for the core loop), and `Grenade.png`/`RPG-round.png`
+(no AoE weapon exists yet — same blocker as Grenadier-Class, see Allies
+above).
 
 ## Objectives / win-lose
 
@@ -187,8 +216,8 @@ of invisible-only.
 |---|---|---|
 | Soldier classes | 6 | 4 (Assault, Sniper, MachineGunner, AntiTank — all combat-capable) |
 | Drone types | 5 | 4 (Scarab, Spider, Hornet, Wasp — all combat-capable) |
-| Effects sheets | 10 | 0 |
-| Projectile sheets | 3 | 0 |
+| Effects sheets | 10 | 4 (muzzle-flashes, hit-sparks, hit-spatters, small-explosion) |
+| Projectile sheets | 3 | 1 (bullets+plasma, tracer-only — see Effects & projectiles above) |
 | Maps | 1 | 1 |
 
 ## Suggested build order
@@ -214,6 +243,12 @@ of invisible-only.
    the same AI/combat code with no branching. Only Centipede remains
    unwired (see the **[OPEN]** row in Enemies above — it needs a modular/
    segmented-body rendering approach, not just a stat block).
-7. **Next up:** polish (effects, projectiles, visible obstacles, RadioOperator
-   support ability, Grenadier AoE, rank bonuses, flag-capture as a richer
-   win condition, Centipede's segmented body).
+7. ~~Effects & projectiles~~ **started** — muzzle flash, hit spark/spatter,
+   drone-death explosion, and a visual-only bullet tracer are all wired up
+   (see Effects & projectiles above). Still open within this bucket: swap
+   in `laser-flash.png` for Hornet/Wasp's muzzle flash, lingering
+   smoke/scorch decals, and impact marks on walls (`bullet-impacts.png`).
+8. **Next up:** the rest of polish (visible obstacles, RadioOperator
+   support ability, Grenadier AoE + `Grenade.png`/`RPG-round.png`, rank
+   bonuses, flag-capture as a richer win condition, Centipede's segmented
+   body).

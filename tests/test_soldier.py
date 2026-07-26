@@ -126,6 +126,12 @@ def test_engage_fires_at_the_nearest_drone_in_range(game, fake_ticks):
     assert drone.hp == 40 - ASSAULT["fire_damage"]
     assert s.facing == 0  # drone is to the right
 
+    from gameplay.effects import HitSpark, MuzzleFlash, Tracer
+    kinds = [type(o) for o in game.all_sprites]
+    assert MuzzleFlash in kinds
+    assert Tracer in kinds
+    assert HitSpark in kinds
+
 
 def test_engage_falls_back_to_following_the_player_with_no_drone_in_range(game):
     game.player = SimpleNamespace(position=Vector2(200, 0))

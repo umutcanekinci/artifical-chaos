@@ -206,6 +206,12 @@ def test_shoot_damages_the_nearest_drone_once_off_cooldown(game, monkeypatch, fa
     assert p.status == "fire"
     assert drone.hp == 40 - 12  # PLAYER_FIRE_DAMAGE, see util/constants.py
 
+    from gameplay.effects import HitSpark, MuzzleFlash, Tracer
+    kinds = [type(o) for o in game.all_sprites]
+    assert MuzzleFlash in kinds
+    assert Tracer in kinds
+    assert HitSpark in kinds
+
 
 def test_shoot_ignores_drones_beyond_fire_range(game, monkeypatch, fake_ticks):
     monkeypatch.setattr(pygame.mouse, "get_pressed", lambda: (True, False, False))
