@@ -18,6 +18,21 @@ MAX_RANK = 15
 SPLASH_FADE_MS = 1500
 SPLASH_HOLD_MS = 1000
 
+# In-game controls tutorial (gameplay/tutorial.py) -- a linear "press this
+# key" HUD overlay shown at the start of a run (MOVE -> FIRE -> SQUAD
+# STANCE), not persisted across runs (no save/load exists yet, see
+# CLAUDE.md's Persistence note) and gone for good the instant every step's
+# been completed once. Icons are Kenney's CC0 input-prompts pack (see
+# ASSETS.md), assets/images/input_prompts/ -- only the "Default" keyboard/
+# mouse style is bundled (no gamepad platforms, no Double/Vector/Fonts
+# variants), since this game has no gamepad support to prompt for.
+TUTORIAL_ICON_SIZE = 48
+TUTORIAL_ICON_GAP = 8
+TUTORIAL_FONT_SIZE = 22
+TUTORIAL_PANEL_PADDING = 12
+TUTORIAL_PANEL_ALPHA = 170
+TUTORIAL_TOP_MARGIN = 24
+
 # Flag capture (gameplay/flag.py) -- the v1 win condition ("defeat all
 # drones") has been replaced by this richer one: hold every flag until it's
 # fully captured. A flag can only progress while the player or an in-army

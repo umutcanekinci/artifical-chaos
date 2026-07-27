@@ -27,6 +27,15 @@ def boot_game() -> None:
         game.draw()
     print("  3 update/draw frames: OK")
 
+    # restart() re-runs the same heavy Map/Player/Tutorial construction
+    # __init__ does -- worth a real (not monkeypatched) pass here, since
+    # tests/test_game_restart.py only exercises it against lightweight
+    # stand-ins to avoid loading the real Tiled map on every test run.
+    game.restart()
+    game.update()
+    game.draw()
+    print("  restart(): OK")
+
 
 def main() -> None:
     print("Booting Game() and running a few frames...")

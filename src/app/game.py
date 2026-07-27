@@ -11,6 +11,14 @@ from util.constants import *
 from gameplay.camera import FollowCamera
 from gameplay.map import Map
 from gameplay.player import Player
+from gameplay.tutorial import Tutorial
+
+# Keys that must never double as "any key restarts the run" while the end
+# screen is up -- Escape already quits (Application._handle_core_event,
+# which always runs before Game's own handle_event()), and F1/F11 are
+# meta/dev toggles (debug overlay, fullscreen) a player might still want to
+# hit from the end screen without also kicking off a new run.
+_RESTART_EXCLUDED_KEYS = frozenset({pygame.K_ESCAPE, pygame.K_F1, pygame.K_F11})
 
 
 class Game(Application):
@@ -18,6 +26,26 @@ class Game(Application):
     def __init__(self):
         super().__init__(SIZE, "Artificial Chaos", FPS)
 
+        self.mouse.set_cursor_visible(False)
+        self.cursor = load_image(ImagePath("mouse-pointer", "ui"))
+
+        self.splash = SplashScreen([ImagePath("pygame_logo", "branding"), ImagePath("title", "branding")],
+                                   fade_ms=SPLASH_FADE_MS, hold_ms=SPLASH_HOLD_MS)
+
+        self._end_font = pygame.font.SysFont("Arial", 96, bold=True)
+        self._restart_font = pygame.font.SysFont("Arial", 36)
+
+        self.restart()
+
+    def restart(self) -> None:
+        """(Re)builds everything that resets on a new attempt: entity
+        lists, the map (fresh flag/drone/soldier/wall layout -- RockObstacle
+        placement stays the same via its fixed ROCK_OBSTACLE_SEED, but
+        flag-guardian drone/soldier classes are picked fresh each time),
+        player, and tutorial. Called once from __init__ for the first run,
+        and again by handle_event() on any key/click on the GAME OVER /
+        VICTORY screen -- app-level one-time setup (cursor, splash, end-
+        screen fonts) lives in __init__ instead, untouched by a restart."""
         self.all_sprites = GameObjectList()
         self.walls = GameObjectList()
         self.flags = GameObjectList()
@@ -29,19 +57,13 @@ class Game(Application):
                                    map_width=self.map.rect.width,
                                    map_height=self.map.rect.height)
         self.player = Player(self, self.map.rect.center)
-
-        self.mouse.set_cursor_visible(False)
-        self.cursor = load_image(ImagePath("mouse-pointer", "ui"))
-
-        self.splash = SplashScreen([ImagePath("pygame_logo", "branding"), ImagePath("title", "branding")],
-                                   fade_ms=SPLASH_FADE_MS, hold_ms=SPLASH_HOLD_MS)
+        self.tutorial = Tutorial(self)
 
         # Win/lose (see GDD.md): victory is holding every Flag until it's
         # captured (gameplay/flag.py) -- richer lose states beyond player
         # death are still deferred.
         self.game_over = False
         self.end_message = ""
-        self._end_font = pygame.font.SysFont("Arial", 96, bold=True)
 
     def run(self):
         # SplashScreen runs its own loop with direct pygame.display.update()
@@ -53,6 +75,13 @@ class Game(Application):
 
     @override
     def handle_event(self, event) -> None:
+        if self.game_over:
+            is_restart_key = event.type == pygame.KEYDOWN and event.key not in _RESTART_EXCLUDED_KEYS
+            is_restart_click = event.type == pygame.MOUSEBUTTONDOWN
+            if is_restart_key or is_restart_click:
+                self.restart()
+            return
+
         if event.type == pygame.KEYDOWN and event.key == pygame.K_TAB:
             self.player.toggle_squad_stance()
 
@@ -64,6 +93,7 @@ class Game(Application):
         self.delta_time = self.clock.get_time() / 1000
         self.camera.follow(self.player.rect.center)
         self.all_sprites.update()
+        self.tutorial.update()
         self._purge_inactive()
         self._check_end_conditions()
 
@@ -106,6 +136,8 @@ class Game(Application):
 
         if self.game_over:
             self._draw_end_message()
+        else:
+            self.tutorial.draw(self.window)
 
     def _draw_end_message(self) -> None:
         overlay = pygame.Surface(self.size, pygame.SRCALPHA)
@@ -115,6 +147,10 @@ class Game(Application):
         text = self._end_font.render(self.end_message, True, (255, 255, 255))
         rect = text.get_rect(center=(self.size[0] // 2, self.size[1] // 2))
         self.window.blit(text, rect)
+
+        restart_text = self._restart_font.render("Press any key or click to restart", True, (200, 200, 200))
+        restart_rect = restart_text.get_rect(center=(self.size[0] // 2, rect.bottom + 50))
+        self.window.blit(restart_text, restart_rect)
 
     @override
     def draw_debug(self):

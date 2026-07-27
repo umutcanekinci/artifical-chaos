@@ -333,7 +333,10 @@ to capture uncontested instead of 5s) — felt too slow, especially now that
 checked first and takes priority if both conditions occur simultaneously,
 ending the run with GAME OVER instead. Both end states freeze the update
 loop and draw a translucent overlay with the end message
-(`_draw_end_message()`).
+(`_draw_end_message()`), plus a "press any key or click to restart" prompt —
+any key or mouse click on that screen (other than Escape/F1/F11) calls
+`Game.restart()`, which rebuilds the map/player/entity lists from scratch
+for a brand new attempt without relaunching the process.
 
 ## World
 
@@ -447,3 +450,12 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     undoing the drone-hp pass above outright (Centipede's 400 hp
     specifically). Worth revisiting once this pass is played, with some
     cost attached if it comes back (a cooldown, a range limit, etc.).
+20. ~~Startup polish: pygame splash + title card + controls tutorial~~
+    **done** — `Game.run()` now shows a two-slide `SplashScreen` (engine
+    credit, then AI-generated title art) before the game loop starts (see
+    CLAUDE.md's Entry point section), and a linear MOVE → FIRE → SQUAD
+    STANCE onboarding overlay (`gameplay/tutorial.py`) plays out over a
+    run's first few seconds using Kenney's CC0 input-prompts icons (see
+    ASSETS.md). None of this changes any gameplay system — pure
+    presentation/onboarding polish once the core loop above was judged
+    feature-complete.
