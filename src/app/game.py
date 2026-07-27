@@ -33,7 +33,7 @@ class Game(Application):
         self.mouse.set_cursor_visible(False)
         self.cursor = load_image(ImagePath("mouse-pointer", "ui"))
 
-        self.splash = SplashScreen([ImagePath("pygame_logo", "branding")],
+        self.splash = SplashScreen([ImagePath("pygame_logo", "branding"), ImagePath("title", "branding")],
                                    fade_ms=SPLASH_FADE_MS, hold_ms=SPLASH_HOLD_MS)
 
         # Win/lose (see GDD.md): victory is holding every Flag until it's
