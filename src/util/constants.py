@@ -370,6 +370,13 @@ SQUAD_STANCE_COLORS = {
     "guard": (80, 220, 80),    # green, matches RANK_UP_STAT_COLORS["hp"]
 }
 
+# Player.draw_squad_stance() -- a persistent bottom-left HUD label (unlike
+# the one-shot FloatingText toggle_squad_stance() pops, this never fades,
+# so the current stance stays visible at a glance instead of only being
+# shown for an instant right when it changes).
+SQUAD_STANCE_HUD_FONT_SIZE = 28
+SQUAD_STANCE_HUD_MARGIN = 20
+
 # Per-soldier-class stats. All six classes are now wired up.
 #
 # Every "speed" is deliberately > the player's own 100 (see Player.ms in
@@ -466,3 +473,16 @@ TRACER_DURATION_MS = 90
 GRENADE_SIZE        = 8   # assets/images/projectiles/Grenade.png, 8 frames @ 8px
 GRENADE_SPIN_FPS    = 16
 GRENADE_FLIGHT_MS   = 400
+
+# BulletImpact (gameplay/effects.py) -- a static wall-impact decal, spawned
+# only from Player.shoot()'s "held the button, no drone in range" branch: a
+# cosmetic-only raycast (gameplay/combat.py's raycast(), never gates real
+# hit resolution) checks whether the shot would have hit a wall, and if so
+# a random decal frame is dropped there. Static (no animation, unlike every
+# other effect here), so it just holds one of bullet-impacts.png's 10
+# frames for BULLET_IMPACT_DURATION_MS instead of playing a clip -- fades
+# out eventually rather than being truly permanent so it can't accumulate
+# without bound over a long play session.
+BULLET_IMPACT_SIZE         = 8   # assets/images/effects/bullet-impacts.png, 10 frames @ 8px, single row
+BULLET_IMPACT_FRAME_COUNT  = 10
+BULLET_IMPACT_DURATION_MS  = 10000

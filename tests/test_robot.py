@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pygame
 import pytest
 from pygame.math import Vector2
@@ -121,6 +123,38 @@ def test_fires_when_in_fire_range_but_outside_melee_range(game, fake_ticks):
     assert MuzzleFlash in kinds
     assert Tracer in kinds
     assert HitSpatter in kinds
+
+
+def test_does_not_fire_through_a_wall_and_approaches_instead(game, fake_ticks):
+    game.player.position = Vector2(SCARAB["fire_range"] - 10, 0)
+    game.player.hp = 100
+    game.walls.append(SimpleNamespace(rect=pygame.Rect(SCARAB["fire_range"] // 2, -10, 20, 20)))
+    s = make_scarab(game)
+
+    fake_ticks["t"] = SCARAB["fire_cooldown_ms"]
+    s.engage()
+
+    assert game.player.hp == 100  # blocked -- no hit landed
+    assert s.status == "walking"  # falls back to approaching, not standing still
+    assert s.acceleration.length() > 0
+
+
+def test_fires_again_once_the_wall_is_no_longer_in_the_way(game, fake_ticks):
+    game.player.position = Vector2(SCARAB["fire_range"] - 10, 0)
+    game.player.hp = 100
+    wall = SimpleNamespace(rect=pygame.Rect(SCARAB["fire_range"] // 2, -10, 20, 20))
+    game.walls.append(wall)
+    s = make_scarab(game)
+
+    fake_ticks["t"] = SCARAB["fire_cooldown_ms"]
+    s.engage()
+    assert game.player.hp == 100
+
+    game.walls.remove(wall)
+    s.engage()
+
+    assert game.player.hp < 100
+    assert s.status == "fire"
 
 
 def test_melees_within_melee_range(game, fake_ticks):

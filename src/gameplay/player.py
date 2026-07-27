@@ -14,8 +14,8 @@ from pygame_core.asset_path import ImagePath
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
-from gameplay.combat import apply_damage, find_nearest, ready_to_attack
-from gameplay.effects import FloatingText, HitSpark, MuzzleFlash, Tracer
+from gameplay.combat import apply_damage, find_nearest, has_line_of_sight, raycast, ready_to_attack
+from gameplay.effects import BulletImpact, FloatingText, HitSpark, MuzzleFlash, Tracer
 from gameplay.ui import draw_health_bar
 
 
@@ -87,6 +87,8 @@ class Player(GameObject):
         self.rank_rect = pygame.Rect(0, 0, RANK_SIZE * SCALE_FACTOR, RANK_SIZE * SCALE_FACTOR)
         self.rank_sheet = SpriteSheet.from_path(ImagePath("squad-insignia", "ui"))
         self.rank_image = self.get_rank_image()
+
+        self._squad_stance_font = pygame.font.SysFont("Arial", SQUAD_STANCE_HUD_FONT_SIZE, bold=True)
 
         game.all_sprites.append(self)
 
@@ -209,18 +211,54 @@ class Player(GameObject):
         if apply_damage(target, damage):
             target.die()
 
+    def fire_at_nothing(self) -> None:
+        """Cosmetic counterpart to attack() for when the mouse is held but
+        no drone is in range -- still gated by the same fire_cooldown_ms
+        (so holding the button against a wall doesn't spam decals every
+        frame), but there's no target and nothing to damage. Fires a
+        raycast (gameplay/combat.py's raycast(), cosmetic-only -- never
+        gates real hit resolution) toward the mouse cursor; a MuzzleFlash
+        and Tracer always play either way (the gun still visibly fires),
+        and a BulletImpact decal drops at the wall if the ray hit one."""
+        now = pygame.time.get_ticks()
+        if not ready_to_attack(now, self.last_attack_time, self.fire_cooldown_ms):
+            return
+        self.last_attack_time = now
+
+        mouse_world = self.game.camera.screen_to_world(self.game.mouse.position)
+        direction = Vector2(mouse_world) - self.position
+        if direction.length() == 0:
+            return
+        hit_point = raycast(self.position, direction, PLAYER_FIRE_RANGE, self.game.walls)
+        end_point = hit_point if hit_point is not None else self.position + direction.normalize() * PLAYER_FIRE_RANGE
+
+        MuzzleFlash(self.game, self.position, self.facing)
+        Tracer(self.game, self.position, end_point)
+        if hit_point is not None:
+            BulletImpact(self.game, hit_point)
+
     def shoot(self) -> bool:
         """Fires at the nearest drone in range while the mouse button is
         held. Movement isn't interrupted by firing -- only this frame's
         animation status is (can't blend "walk" and "fire" without a
-        dedicated combined clip, which the asset pack doesn't have)."""
+        dedicated combined clip, which the asset pack doesn't have).
+
+        A found target behind a wall (no combat.has_line_of_sight()) falls
+        back to fire_at_nothing() exactly like having no target at all --
+        the shot still fires cosmetically toward the mouse cursor (not
+        toward the blocked target), and drops a BulletImpact if *that*
+        aim direction hits a wall too. No "walk toward it" concern here
+        the way Soldier/Drone have: the player is directly controlled, so
+        there's no autonomous-approach behavior that could get stuck."""
         if not pygame.mouse.get_pressed()[0]:
             return False
         self.aim_at_mouse()
         self.status = "fire"
         target = find_nearest(self.position, self.game.robots, PLAYER_FIRE_RANGE)
-        if target is not None:
+        if target is not None and has_line_of_sight(self.position, target.position, self.game.walls):
             self.attack(target, self.fire_damage, self.fire_cooldown_ms)
+        else:
+            self.fire_at_nothing()
         return True
 
     @override
@@ -254,3 +292,16 @@ class Player(GameObject):
 
     def draw_health(self, surface, camera) -> None:
         draw_health_bar(surface, camera, self.rect, self.hp, self.max_hp, always=True)
+
+    def draw_squad_stance(self, surface) -> None:
+        """A persistent, always-visible HUD label for squad_stance -- fixed
+        to a screen corner (not world-space like draw_rank()/draw_health(),
+        so it stays put regardless of where the player wanders) since the
+        one-shot FloatingText toggle_squad_stance() already pops is easy to
+        miss if you looked away for a second. Same label/color mapping as
+        that popup (SQUAD_STANCE_LABELS/COLORS), just persistent instead of
+        fading out."""
+        label = self._squad_stance_font.render(SQUAD_STANCE_LABELS[self.squad_stance], True,
+                                               SQUAD_STANCE_COLORS[self.squad_stance])
+        rect = label.get_rect(bottomleft=(SQUAD_STANCE_HUD_MARGIN, surface.get_height() - SQUAD_STANCE_HUD_MARGIN))
+        surface.blit(label, rect)

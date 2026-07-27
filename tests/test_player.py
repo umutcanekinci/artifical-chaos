@@ -381,6 +381,46 @@ def test_shoot_damages_the_nearest_drone_once_off_cooldown(game, monkeypatch, fa
     assert HitSpark in kinds
 
 
+def test_shoot_does_not_fire_through_a_wall_and_fires_at_nothing_instead(game, monkeypatch, fake_ticks):
+    monkeypatch.setattr(pygame.mouse, "get_pressed", lambda: (True, False, False))
+    p = make_shooting_player(game)
+    drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
+    game.robots.append(drone)
+    game.walls.append(SimpleNamespace(rect=pygame.Rect(25, -10, 20, 20)))
+    game.mouse.position = (50, 0)  # aim toward the (now blocked) drone
+
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS
+    p.shoot()
+
+    assert drone.hp == 40  # blocked -- no hit landed
+
+    from gameplay.effects import BulletImpact, MuzzleFlash, Tracer
+    kinds = [type(o) for o in game.all_sprites]
+    assert MuzzleFlash in kinds
+    assert Tracer in kinds
+    assert BulletImpact in kinds  # the same wall shows up in the aim direction too
+
+
+def test_shoot_damages_the_drone_again_once_the_wall_is_no_longer_in_the_way(game, monkeypatch, fake_ticks):
+    monkeypatch.setattr(pygame.mouse, "get_pressed", lambda: (True, False, False))
+    p = make_shooting_player(game)
+    drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
+    game.robots.append(drone)
+    wall = SimpleNamespace(rect=pygame.Rect(25, -10, 20, 20))
+    game.walls.append(wall)
+    game.mouse.position = (50, 0)
+
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS
+    p.shoot()
+    assert drone.hp == 40
+
+    game.walls.remove(wall)
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS * 2
+    p.shoot()
+
+    assert drone.hp == 40 - PLAYER_FIRE_DAMAGE
+
+
 def test_shoot_ignores_drones_beyond_fire_range(game, monkeypatch, fake_ticks):
     monkeypatch.setattr(pygame.mouse, "get_pressed", lambda: (True, False, False))
     p = make_shooting_player(game)
@@ -391,6 +431,62 @@ def test_shoot_ignores_drones_beyond_fire_range(game, monkeypatch, fake_ticks):
     p.shoot()
 
     assert drone.hp == 40
+
+
+def test_shoot_fires_at_nothing_when_no_drone_is_in_range(game, monkeypatch, fake_ticks):
+    # No target -- shoot() should still fire cosmetically (MuzzleFlash +
+    # Tracer) toward the mouse instead of silently doing nothing.
+    monkeypatch.setattr(pygame.mouse, "get_pressed", lambda: (True, False, False))
+    p = make_shooting_player(game)
+    game.mouse.position = (50, 0)  # aim away from the player so direction isn't zero
+
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS
+    p.shoot()
+
+    from gameplay.effects import BulletImpact, MuzzleFlash, Tracer
+    kinds = [type(o) for o in game.all_sprites]
+    assert MuzzleFlash in kinds
+    assert Tracer in kinds
+    assert BulletImpact not in kinds  # no wall in the path
+
+
+def test_fire_at_nothing_drops_a_bullet_impact_on_a_wall_in_the_path(game, fake_ticks):
+    p = make_shooting_player(game)
+    game.mouse.position = (50, 0)
+    game.walls.append(SimpleNamespace(rect=pygame.Rect(30, -10, 20, 20)))
+
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS
+    p.fire_at_nothing()
+
+    from gameplay.effects import BulletImpact
+    impacts = [o for o in game.all_sprites if isinstance(o, BulletImpact)]
+    assert len(impacts) == 1
+    assert impacts[0].rect.centerx == 30
+
+
+def test_fire_at_nothing_respects_the_cooldown(game, fake_ticks):
+    p = make_shooting_player(game)
+    game.mouse.position = (50, 0)
+
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS
+    p.fire_at_nothing()
+    from gameplay.effects import MuzzleFlash
+    first_count = len([o for o in game.all_sprites if isinstance(o, MuzzleFlash)])
+
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS + 1  # nowhere near the next cooldown
+    p.fire_at_nothing()
+
+    assert len([o for o in game.all_sprites if isinstance(o, MuzzleFlash)]) == first_count
+
+
+def test_fire_at_nothing_does_nothing_when_aiming_exactly_at_the_player(game, fake_ticks):
+    p = make_shooting_player(game)
+    game.mouse.position = (0, 0)  # same as the player's own position
+
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS
+    p.fire_at_nothing()  # must not raise (Vector2.normalize() on a zero vector would)
+
+    assert game.all_sprites == [p]  # just the player itself, no effect spawned
 
 
 def test_aim_at_mouse_faces_left_when_mouse_is_left_of_the_player(game):
@@ -474,3 +570,27 @@ def test_draw_health_does_not_error_at_various_hp_levels(game):
     for hp in (100, 50, 20, 0):
         p.hp = hp
         p.draw_health(surface, game.camera)  # must not raise
+
+
+def test_draw_squad_stance_renders_something(game):
+    p = make_shooting_player(game)
+    surface = pygame.Surface((200, 200))
+    surface.fill((0, 0, 0))
+
+    p.draw_squad_stance(surface)
+
+    assert pygame.transform.average_color(surface) != (0, 0, 0, 255)
+
+
+def test_draw_squad_stance_reflects_the_current_stance(game):
+    p = make_shooting_player(game)
+    surface_engage = pygame.Surface((200, 200))
+    p.draw_squad_stance(surface_engage)
+
+    p.toggle_squad_stance()
+    surface_guard = pygame.Surface((200, 200))
+    p.draw_squad_stance(surface_guard)
+
+    # Different stances render different colored text -- the two surfaces
+    # shouldn't be pixel-identical.
+    assert pygame.image.tobytes(surface_engage, "RGB") != pygame.image.tobytes(surface_guard, "RGB")

@@ -270,16 +270,14 @@ same approach as Hornet/Wasp.
   `BIG_EXPLOSION_FPS`, so the smoke's own clip simply outlasts the
   fireball's — no separate delayed-spawn timer needed to make it "linger".
 
-`bullet-impacts.png` (10 static decal variants, not an animation) is a
-deliberate deferral, not just unwired: nothing in this codebase raycasts an
-attack against `game.walls` — every hit resolves directly against
-`find_nearest`'s target (see Combat above), so there's no "the shot missed
-and hit a wall behind the target" event to hang a decal on without adding
-that raycast, a bigger change to the hitscan model itself than a decal
-effect. Still unused for the same "not required for the core loop, no
-mechanic needs it yet" reason as before: `big-fragments.png`/
-`small-fragments.png` (extra explosion debris), and `RPG-round.png` (no
-weapon uses it).
+`bullet-impacts.png` (10 static decal variants, not an animation) is now
+wired up as `BulletImpact` (`gameplay/effects.py`) — see item 21 below.
+Every *landed* hit still resolves directly against `find_nearest`'s target
+(see Combat above), untouched; the decal only covers the previously-silent
+case of `Player.shoot()` finding no target at all, via a new cosmetic-only
+`combat.raycast()`. Still unused for "not required for the core loop, no
+mechanic needs it yet" reasons: `big-fragments.png`/`small-fragments.png`
+(extra explosion debris), and `RPG-round.png` (no weapon uses it).
 
 ## Objectives / win-lose
 
@@ -363,7 +361,7 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
 |---|---|---|
 | Soldier classes | 6 | 6 (Assault, Sniper, MachineGunner, AntiTank, Grenadier, RadioOperator) |
 | Drone types | 5 | 5 (Scarab, Spider, Hornet, Wasp, Centipede — all combat-capable) |
-| Effects sheets | 10 | 5 (muzzle-flashes, hit-sparks, hit-spatters, small-explosion, big-explosion) |
+| Effects sheets | 10 | 8 (muzzle-flashes, laser-flash, hit-sparks, hit-spatters, small-explosion, big-explosion, smoke, bullet-impacts) |
 | Projectile sheets | 3 | 2 (bullets+plasma tracer-only, Grenade — see Effects & projectiles above) |
 | Maps | 1 | 1 |
 
@@ -387,11 +385,9 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
    `sprite_size`/`clip_rows`/`destroyed_row` config instead of assuming
    Scarab's layout, so Hornet (24×24, 2 rows) and Wasp (16×16, 1 row) reuse
    the same AI/combat code with no branching.
-7. ~~Effects & projectiles~~ **started** — muzzle flash, hit spark/spatter,
-   drone-death explosion, and a visual-only bullet tracer are all wired up
-   (see Effects & projectiles above). `bullet-impacts.png` specifically is
-   a deliberate deferral, not just unwired (see Effects & projectiles
-   above for why) — nothing else is still open in this bucket.
+7. ~~Effects & projectiles~~ **done** — muzzle flash, hit spark/spatter,
+   drone-death explosion, a visual-only bullet tracer, and (as of item 21)
+   wall-impact decals are all wired up (see Effects & projectiles above).
 8. ~~Flag-capture as a richer win condition~~ **done** — replaces "defeat
    all drones" outright (see Objectives / win-lose above).
 9. ~~Rank bonuses~~ **done** — see Player: Squad Leader above.
@@ -403,9 +399,6 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
 14. ~~Swap in laser-flash.png for Hornet/Wasp~~ **done** — see Effects &
     projectiles above.
 15. ~~Lingering smoke~~ **done** — see Effects & projectiles above.
-    `bullet-impacts.png` (wall impact marks) is a deliberate deferral
-    instead — needs a raycast against `game.walls` this codebase doesn't
-    have, a bigger change to the hitscan model than a decal effect.
 16. ~~Hornet's stand-off/kiting behavior~~ **done** — see Enemies above.
 17. ~~Friendly-fire and story **[OPEN]**s~~ **done** — no friendly fire, by
     design (see Combat above, and its regression tests in `test_soldier.py`/
@@ -440,10 +433,10 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     - ~~Squad stance toggle~~ **done** — Tab flips `Player.squad_stance`
       between `"engage"` (default, unchanged spread-and-fight behavior) and
       `"guard"` (tight escort formation, see CLAUDE.md's Player/Soldier
-      entries for the exact numbers). A `FloatingText` popup is the only
-      feedback (no HUD indicator yet) — acceptable for a first pass, worth
-      revisiting if playtesting shows the current stance isn't obvious
-      enough at a glance mid-fight.
+      entries for the exact numbers). A `FloatingText` popup fires the
+      instant it changes, plus a persistent bottom-left HUD label keeps
+      showing the current stance afterward (see item 21 below) — the
+      popup alone wasn't enough if you looked away right when Tab fired.
     A fourth idea (right-click to send the whole army to focus-fire one
     point) was deliberately deferred rather than folded in: it's a pure
     damage-concentration multiplier with no built-in cost, which risks
@@ -471,3 +464,54 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     the player's stopping point than a lost one. None of this changes any
     gameplay system — pure presentation/onboarding polish once the core
     loop above was judged feature-complete.
+21. ~~Wall-impact bullet decals + persistent squad-stance HUD~~ **done** —
+    the two items item 19 explicitly left open. `combat.raycast()` is a
+    genuine directional raycast (the module's only one — everything else
+    in combat.py stays instant nearest-in-range, unchanged) fired only
+    from `Player.fire_at_nothing()`, the new cosmetic-only fallback
+    `shoot()` takes when the mouse is held but no drone is in range: it
+    used to do nothing at all in that case, now a `MuzzleFlash`+`Tracer`
+    always play (the gun still visibly fires) and a `BulletImpact` decal
+    (`bullet-impacts.png`, 10 static frames, `gameplay/effects.py`) drops
+    if the ray hit a wall. Landed hits were untouched at the time (see item
+    22 below for why that changed) — this item only filled in the
+    previously-silent miss case, exactly the gap CLAUDE.md flagged
+    `bullet-impacts.png` as blocked on. Separately, `Player.
+    draw_squad_stance()` now keeps a persistent bottom-left HUD label
+    (colored per `SQUAD_STANCE_COLORS`) showing the current stance at all
+    times, on top of (not instead of) the one-shot `FloatingText` popup
+    `toggle_squad_stance()` already fires — the popup is easy to miss if
+    you looked away right when Tab was pressed, the persistent label
+    isn't.
+22. ~~Line-of-sight gating for ranged attacks~~ **done** — the
+    inconsistency item 21 introduced: wall decals treated walls as solid
+    for a *missed* shot, but a *landed* hit still went straight through
+    one as long as the target was in range, so cover did nothing
+    defensively or offensively. `combat.has_line_of_sight()` (wraps
+    `raycast()`, capped at the exact distance to the target so a wall
+    behind it never counts as blocking) now gates every ranged attack —
+    `Drone.engage()`'s fire branch, `Soldier.engage()`, `Player.shoot()` —
+    melee and Grenadier's splash throw don't check it (already point-blank,
+    or arcing over short cover). A blocked `Drone` falls through to its
+    normal "walking" approach branch instead of standing still, since it
+    already walks toward out-of-range targets; a blocked `Soldier` drops
+    the target back to `None` and follows the player instead, since
+    (unlike `Drone`) it has no approach-a-target behavior of its own and
+    would otherwise freeze aiming at a wall forever; a blocked `Player`
+    shot falls back to `fire_at_nothing()` (see item 21), no special
+    handling needed since the player's movement is directly controlled.
+    Checked against the real map, not just unit tests with hand-placed
+    walls: every one of the 10 flags' actual guardian drones still
+    successfully melees and kills a stationary player placed right on top
+    of it (real geometry, no LOS check involved at that range), and ranged
+    drones (Scarab/Spider tried directly) still land hits at a real
+    fire-range distance with no wall in the way. A long, free-running
+    simulation (player left stationary, drones/soldiers otherwise idle)
+    surfaced a real but *unrelated* finding instead: per-tick performance
+    degrades over several sim-minutes as `Flag._spawn_drone()` grows the
+    drone count toward `FLAG_SPAWN_MAX_CONCURRENT` per flag — a pre-existing
+    O(drones × walls) collision-check cost from `gameplay/collision.py`,
+    not anything to do with `has_line_of_sight()` (which never even ran in
+    that scenario, since nothing was ever in aggro/fire range of anything).
+    Worth a look eventually for long play sessions, but a separate issue
+    from this one.

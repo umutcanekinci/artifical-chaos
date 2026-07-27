@@ -140,6 +140,7 @@ class Game(Application):
 
         self.player.draw_rank(self.window, self.camera)
         self.player.draw_health(self.window, self.camera)
+        self.player.draw_squad_stance(self.window)
         self.window.blit(self.cursor, self.mouse.position)
 
         if self.game_over:

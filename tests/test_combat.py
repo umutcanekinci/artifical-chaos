@@ -1,12 +1,17 @@
 from types import SimpleNamespace
 
+import pygame
 from pygame.math import Vector2
 
-from gameplay.combat import apply_damage, find_all_in_range, find_nearest, ready_to_attack
+from gameplay.combat import apply_damage, find_all_in_range, find_nearest, has_line_of_sight, raycast, ready_to_attack
 
 
 def make_entity(x, y, active=True):
     return SimpleNamespace(position=Vector2(x, y), active=active)
+
+
+def make_wall(rect: pygame.Rect):
+    return SimpleNamespace(rect=rect)
 
 
 def test_find_nearest_returns_the_closest_candidate_in_range():
@@ -124,3 +129,71 @@ def test_apply_damage_reports_death_when_overkilled():
 
     assert target.hp == -994
     assert killed is True
+
+
+def test_raycast_returns_none_with_no_walls():
+    assert raycast(Vector2(0, 0), Vector2(1, 0), max_range=100, walls=[]) is None
+
+
+def test_raycast_returns_none_when_nothing_is_in_the_path():
+    wall = make_wall(pygame.Rect(200, 200, 20, 20))  # well off to the side
+    assert raycast(Vector2(0, 0), Vector2(1, 0), max_range=100, walls=[wall]) is None
+
+
+def test_raycast_returns_none_for_a_zero_length_direction():
+    wall = make_wall(pygame.Rect(50, -10, 20, 20))
+    assert raycast(Vector2(0, 0), Vector2(0, 0), max_range=100, walls=[wall]) is None
+
+
+def test_raycast_hits_a_wall_directly_in_the_path():
+    wall = make_wall(pygame.Rect(50, -10, 20, 20))  # spans x 50-70, y -10-10
+
+    hit = raycast(Vector2(0, 0), Vector2(1, 0), max_range=100, walls=[wall])
+
+    assert hit is not None
+    assert hit.x == 50  # entry point -- the near edge, not the far one
+    assert hit.y == 0
+
+
+def test_raycast_ignores_a_wall_beyond_max_range():
+    wall = make_wall(pygame.Rect(500, -10, 20, 20))
+
+    hit = raycast(Vector2(0, 0), Vector2(1, 0), max_range=100, walls=[wall])
+
+    assert hit is None
+
+
+def test_raycast_returns_the_nearest_of_several_walls_in_the_path():
+    near_wall = make_wall(pygame.Rect(30, -10, 20, 20))
+    far_wall = make_wall(pygame.Rect(70, -10, 20, 20))
+
+    hit = raycast(Vector2(0, 0), Vector2(1, 0), max_range=100, walls=[far_wall, near_wall])
+
+    assert hit.x == 30
+
+
+def test_has_line_of_sight_true_with_no_walls():
+    assert has_line_of_sight(Vector2(0, 0), Vector2(100, 0), walls=[]) is True
+
+
+def test_has_line_of_sight_false_when_a_wall_blocks_the_path():
+    wall = make_wall(pygame.Rect(50, -10, 20, 20))
+    assert has_line_of_sight(Vector2(0, 0), Vector2(100, 0), walls=[wall]) is False
+
+
+def test_has_line_of_sight_true_when_the_wall_is_behind_the_target():
+    # The wall sits past the target, not between origin and target -- a
+    # wall behind the target must never count as blocking it.
+    wall = make_wall(pygame.Rect(150, -10, 20, 20))
+    assert has_line_of_sight(Vector2(0, 0), Vector2(100, 0), walls=[wall]) is True
+
+
+def test_has_line_of_sight_true_when_target_and_origin_coincide():
+    assert has_line_of_sight(Vector2(5, 5), Vector2(5, 5), walls=[make_wall(pygame.Rect(0, 0, 1000, 1000))]) is True
+
+
+def test_has_line_of_sight_false_when_a_wall_sits_exactly_at_the_target():
+    # A wall whose edge lines up with the target's own position must still
+    # count as blocking -- clipline() includes both endpoints.
+    wall = make_wall(pygame.Rect(90, -10, 20, 20))
+    assert has_line_of_sight(Vector2(0, 0), Vector2(100, 0), walls=[wall]) is False

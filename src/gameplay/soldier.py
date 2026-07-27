@@ -14,7 +14,7 @@ from pygame_core.image import scale
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
-from gameplay.combat import apply_damage, find_all_in_range, find_nearest, ready_to_attack
+from gameplay.combat import apply_damage, find_all_in_range, find_nearest, has_line_of_sight, ready_to_attack
 from gameplay.effects import BigExplosion, FloatingText, Grenade, HitSpark, MuzzleFlash, Smoke, Tracer
 from gameplay.ui import draw_health_bar
 
@@ -182,7 +182,13 @@ class Soldier(GameObject):
         fight while the squad's supposed to be holding close. Neither of
         these touches *which* target gets picked, only where the soldier's
         willing to look for one, so the no-individual-micromanagement pillar
-        holds the same as the stationary-fire gate above."""
+        holds the same as the stationary-fire gate above.
+
+        A target behind a wall (no `combat.has_line_of_sight()`) is treated
+        as if none were found at all -- see the comment at that check for
+        why this soldier falls back to following the player instead of
+        holding its aim on a blocked target the way Drone.engage() holds
+        and keeps approaching."""
         guarding = self.game.player.squad_stance == "guard"
         hold_distance = SQUAD_GUARD_HOLD_DISTANCE if guarding else SOLDIER_HOLD_DISTANCE
 
@@ -195,9 +201,18 @@ class Soldier(GameObject):
             return
 
         target = find_nearest(self.position, self.game.robots, self.fire_range)
-        if guarding and target is not None:
-            if (target.position - self.game.player.position).length() > SQUAD_GUARD_ENGAGE_RADIUS:
+        if target is not None:
+            if guarding and (target.position - self.game.player.position).length() > SQUAD_GUARD_ENGAGE_RADIUS:
                 target = None  # too far from the commander to bother with while guarding
+            elif not has_line_of_sight(self.position, target.position, self.game.walls):
+                # Blocked by a wall -- soldiers never approach a target on
+                # their own (unlike Drone.engage(), which walks closer when
+                # blocked), so holding onto a blocked target would freeze
+                # this soldier in place indefinitely. Falling back to
+                # walk() instead means it keeps following the player, which
+                # naturally changes the geometry over time instead of
+                # standing stuck aiming at a wall forever.
+                target = None
 
         if target is None:
             self.walk(hold_distance)

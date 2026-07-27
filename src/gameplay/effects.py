@@ -1,3 +1,5 @@
+import random
+
 import pygame
 from pygame.math import Vector2
 from typing import override
@@ -179,6 +181,43 @@ class Grenade(GameObject):
             return
         t = elapsed / GRENADE_FLIGHT_MS
         self.rect.center = self.start.lerp(self.end, t)
+        super().update()
+
+
+class BulletImpact(GameObject):
+    """A static wall-impact decal -- unlike every other effect here, this
+    holds one frame the whole time instead of playing a clip, since
+    bullet-impacts.png is 10 unrelated static variants (a scorch/scratch
+    mark), not an animation. Only spawned from Player.shoot()'s "held the
+    button, no drone in range" branch when a cosmetic-only raycast
+    (gameplay/combat.py's raycast()) finds a wall in the shot's path --
+    the "the shot passed through empty space and hit a wall behind the
+    target" event CLAUDE.md flagged as needing exactly this before it
+    could exist. Fades out after BULLET_IMPACT_DURATION_MS rather than
+    being truly permanent, so it can't accumulate without bound over a
+    long session of firing at walls."""
+
+    def __init__(self, game, position) -> None:
+        super().__init__(name="bullet_impact")
+        self.spawn_time = pygame.time.get_ticks()
+
+        self.rect.size = (BULLET_IMPACT_SIZE * SCALE_FACTOR, BULLET_IMPACT_SIZE * SCALE_FACTOR)
+        self.rect.center = position
+
+        sheet = SpriteSheet.from_path(ImagePath("bullet-impacts", "effects"))
+        frame_id = random.randrange(BULLET_IMPACT_FRAME_COUNT)
+        frame = sheet.frame(frame_id, 0, BULLET_IMPACT_SIZE, BULLET_IMPACT_SIZE)
+
+        renderer = self.add_component(SpriteRenderer2D)
+        renderer.set_image(scale_by(frame, SCALE_FACTOR))
+
+        game.all_sprites.append(self)
+
+    @override
+    def update(self) -> None:
+        if pygame.time.get_ticks() - self.spawn_time >= BULLET_IMPACT_DURATION_MS:
+            self.active = False
+            return
         super().update()
 
 

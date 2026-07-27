@@ -1,10 +1,11 @@
 from pygame.math import Vector2
 
 from gameplay.effects import (
-    BigExplosion, Explosion, FloatingText, Grenade, HitSpark, HitSpatter, LaserFlash, MuzzleFlash, Smoke, Tracer,
+    BigExplosion, BulletImpact, Explosion, FloatingText, Grenade, HitSpark, HitSpatter, LaserFlash,
+    MuzzleFlash, Smoke, Tracer,
 )
 from util.constants import (
-    FLOATING_TEXT_DURATION_MS, FLOATING_TEXT_RISE_DISTANCE, FLOATING_TEXT_X_SPACING,
+    BULLET_IMPACT_DURATION_MS, FLOATING_TEXT_DURATION_MS, FLOATING_TEXT_RISE_DISTANCE, FLOATING_TEXT_X_SPACING,
     GRENADE_FLIGHT_MS, TRACER_DURATION_MS,
 )
 
@@ -117,6 +118,34 @@ def test_tracer_deactivates_once_its_duration_elapses(game, fake_ticks):
     t.update()
 
     assert t.active is False
+
+
+def test_bullet_impact_spawns_centered_on_position(game):
+    b = BulletImpact(game, (30, 40))
+
+    assert b.rect.center == (30, 40)
+    assert b in game.all_sprites
+    assert b.active is True
+
+
+def test_bullet_impact_stays_active_before_its_duration_elapses(game, fake_ticks):
+    fake_ticks["t"] = 0
+    b = BulletImpact(game, (0, 0))
+
+    fake_ticks["t"] = BULLET_IMPACT_DURATION_MS - 1
+    b.update()
+
+    assert b.active is True
+
+
+def test_bullet_impact_deactivates_once_its_duration_elapses(game, fake_ticks):
+    fake_ticks["t"] = 0
+    b = BulletImpact(game, (0, 0))
+
+    fake_ticks["t"] = BULLET_IMPACT_DURATION_MS
+    b.update()
+
+    assert b.active is False
 
 
 def test_floating_text_spawns_centered_on_position(game, fake_ticks):

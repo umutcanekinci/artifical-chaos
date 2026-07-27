@@ -231,6 +231,41 @@ def test_engage_fires_at_the_nearest_drone_in_range(game, fake_ticks):
     assert HitSpark in kinds
 
 
+def test_engage_does_not_fire_through_a_wall_and_follows_the_player_instead(game, fake_ticks):
+    game.player = SimpleNamespace(position=Vector2(0, 0), velocity=Vector2(), squad_stance="engage")
+    s = Soldier(game, (0, 0))
+    drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
+    game.robots.append(drone)
+    game.walls.append(SimpleNamespace(rect=pygame.Rect(25, -10, 20, 20)))
+
+    fake_ticks["t"] = ASSAULT["fire_cooldown_ms"]
+    s.engage()
+
+    assert drone.hp == 40  # blocked -- no hit landed
+    # No approach behavior of its own -- falls back to walk() (idle, since
+    # the player is within hold distance), not stuck holding aim forever.
+    assert s.status == "idle"
+
+
+def test_engage_fires_again_once_the_wall_is_no_longer_in_the_way(game, fake_ticks):
+    game.player = SimpleNamespace(position=Vector2(0, 0), velocity=Vector2(), squad_stance="engage")
+    s = Soldier(game, (0, 0))
+    drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
+    game.robots.append(drone)
+    wall = SimpleNamespace(rect=pygame.Rect(25, -10, 20, 20))
+    game.walls.append(wall)
+
+    fake_ticks["t"] = ASSAULT["fire_cooldown_ms"]
+    s.engage()
+    assert drone.hp == 40
+
+    game.walls.remove(wall)
+    s.engage()
+
+    assert drone.hp == 40 - ASSAULT["fire_damage"]
+    assert s.status == "fire"
+
+
 def test_engage_falls_back_to_following_the_player_with_no_drone_in_range(game):
     game.player = SimpleNamespace(position=Vector2(200, 0), velocity=Vector2(), squad_stance="engage")
     s = Soldier(game, (0, 0))

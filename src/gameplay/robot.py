@@ -10,7 +10,7 @@ from pygame_core.asset_path import ImagePath
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips, add_oneshot_clip
-from gameplay.combat import apply_damage, find_nearest, ready_to_attack
+from gameplay.combat import apply_damage, find_nearest, has_line_of_sight, ready_to_attack
 from gameplay.effects import Explosion, HitSpatter, LaserFlash, MuzzleFlash, Smoke, Tracer
 from gameplay.ui import draw_health_bar
 
@@ -86,7 +86,7 @@ class Drone(GameObject):
             self.acceleration = Vector2()
             self.status = "melee"
             self.attack(target, self.melee_damage, self.melee_cooldown_ms)
-        elif distance <= self.fire_range:
+        elif distance <= self.fire_range and has_line_of_sight(self.position, target.position, self.game.walls):
             self.status = "fire"
             if self.stand_off_range > 0 and distance < self.stand_off_range:
                 # Kite: back away while still firing instead of holding
@@ -98,6 +98,12 @@ class Drone(GameObject):
                 self.acceleration = Vector2()
             self.attack(target, self.fire_damage, self.fire_cooldown_ms)
         else:
+            # Either out of fire_range, or in range but a wall blocks the
+            # shot (has_line_of_sight) -- both cases close the distance the
+            # same way. A blocked drone never stands still firing at a
+            # wall; it keeps approaching, which either reaches melee range
+            # (unconditional, no LOS check needed once actually adjacent)
+            # or the target moves and the sightline opens back up.
             self.status = "walking"
             self.acceleration = delta.normalize() * self.ms
 
