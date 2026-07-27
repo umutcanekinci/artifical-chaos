@@ -26,7 +26,8 @@ def make_fake_game(end_message: str, icon_calls: list, prompt_calls: list):
         _end_font=pygame.font.SysFont("Arial", 40, bold=True),
         _any_key_icon=object(),
         _escape_icon=object(),
-        _draw_icon_caption=lambda icon, text, top: icon_calls.append((text, top)) or top + 10,
+        _mouse_icon=object(),
+        _draw_icon_caption=lambda icon, parts, top: icon_calls.append((parts, top)) or top + 10,
         _draw_prompt_line=lambda icon, text, top: prompt_calls.append((text, top)) or top + 10,
     )
 
@@ -37,7 +38,7 @@ def test_game_over_draws_the_restart_prompt_and_no_exit_prompt():
 
     Game._draw_end_message(fake)
 
-    assert [text for text, _ in icon_calls] == ["or click to restart"]
+    assert [parts for parts, _ in icon_calls] == [("or ", fake._mouse_icon, " to restart")]
     assert prompt_calls == []
 
 
@@ -47,7 +48,7 @@ def test_victory_draws_the_restart_prompt_and_an_exit_prompt():
 
     Game._draw_end_message(fake)
 
-    assert [text for text, _ in icon_calls] == ["or click to restart"]
+    assert [parts for parts, _ in icon_calls] == [("or ", fake._mouse_icon, " to restart")]
     assert [text for text, _ in prompt_calls] == ["Press Esc to exit"]
 
 
@@ -64,13 +65,29 @@ def test_draw_icon_caption_renders_something_and_returns_its_bottom():
     fake = SimpleNamespace(size=(800, 600), window=pygame.Surface((800, 600)),
                           _restart_font=pygame.font.SysFont("Arial", 20))
     fake.window.fill((10, 10, 10))
+    fake._build_inline = lambda parts: Game._build_inline(fake, parts)
     icon = pygame.Surface((40, 40))
     icon.fill((255, 255, 255))
+    mouse_icon = pygame.Surface((20, 20))
+    mouse_icon.fill((255, 255, 255))
 
-    bottom = Game._draw_icon_caption(fake, icon, "or click to restart", 100)
+    bottom = Game._draw_icon_caption(fake, icon, ("or ", mouse_icon, " to restart"), 100)
 
     assert bottom > 100
     assert pygame.transform.average_color(fake.window) != (10, 10, 10)
+
+
+def test_build_inline_mixes_text_and_icon_parts_vertically_centered():
+    fake = SimpleNamespace(_restart_font=pygame.font.SysFont("Arial", 20))
+    icon = pygame.Surface((8, 8), pygame.SRCALPHA)
+    icon.fill((255, 255, 255, 255))
+
+    line = Game._build_inline(fake, ("or ", icon, " to restart"))
+
+    text_before = fake._restart_font.render("or ", True, (200, 200, 200))
+    text_after = fake._restart_font.render(" to restart", True, (200, 200, 200))
+    assert line.get_width() == text_before.get_width() + icon.get_width() + text_after.get_width()
+    assert line.get_height() == max(text_before.get_height(), icon.get_height(), text_after.get_height())
 
 
 def test_draw_prompt_line_renders_something_and_returns_its_bottom():

@@ -36,6 +36,9 @@ class Game(Application):
         self._restart_font = pygame.font.SysFont("Arial", 36)
         self._any_key_icon = load_image(ImagePath("keyboard_any_outline", "input_prompts"), size=(96, 96))
         self._escape_icon = load_image(ImagePath("keyboard_escape_outline", "input_prompts"), size=(32, 32))
+        # Generic mouse (no button highlighted) rather than mouse_left --
+        # restart triggers on any mouse button, not specifically left click.
+        self._mouse_icon = load_image(ImagePath("mouse_outline", "input_prompts"), size=(32, 32))
 
         self.restart()
 
@@ -153,23 +156,41 @@ class Game(Application):
         rect = text.get_rect(center=(self.size[0] // 2, self.size[1] // 2))
         self.window.blit(text, rect)
 
-        bottom = self._draw_icon_caption(self._any_key_icon, "or click to restart", rect.bottom + 40)
+        bottom = self._draw_icon_caption(self._any_key_icon, ("or ", self._mouse_icon, " to restart"),
+                                         rect.bottom + 40)
         if self.end_message == "VICTORY":
             self._draw_prompt_line(self._escape_icon, "Press Esc to exit", bottom + 30)
 
-    def _draw_icon_caption(self, icon: pygame.Surface, text: str, top: int) -> int:
+    def _draw_icon_caption(self, icon: pygame.Surface, caption_parts, top: int) -> int:
         """Blits a big icon centered at `top` with a caption below it,
         returning the caption's bottom y so callers can stack another
         prompt right under it. The icon itself already shows what it means
         (e.g. Kenney's "ANY" key-cap art) -- the caption only needs to say
-        what pressing it does, not repeat "press any key"."""
+        what pressing it does, not repeat "press any key". `caption_parts`
+        mixes strings (rendered as text) and icon surfaces (e.g. a mouse
+        icon standing in for the word "click") laid out inline left-to-
+        right, vertically centered against each other."""
         icon_rect = icon.get_rect(midtop=(self.size[0] // 2, top))
         self.window.blit(icon, icon_rect)
 
-        caption = self._restart_font.render(text, True, (200, 200, 200))
+        caption = self._build_inline(caption_parts)
         caption_rect = caption.get_rect(midtop=(self.size[0] // 2, icon_rect.bottom + 8))
         self.window.blit(caption, caption_rect)
         return caption_rect.bottom
+
+    def _build_inline(self, parts) -> pygame.Surface:
+        """Composes a row of text/icon parts (see _draw_icon_caption) into
+        one surface, each part vertically centered against the tallest."""
+        pieces = [self._restart_font.render(p, True, (200, 200, 200)) if isinstance(p, str) else p
+                 for p in parts]
+        width = sum(p.get_width() for p in pieces)
+        height = max(p.get_height() for p in pieces)
+        line = pygame.Surface((width, height), pygame.SRCALPHA)
+        x = 0
+        for piece in pieces:
+            line.blit(piece, (x, (height - piece.get_height()) // 2))
+            x += piece.get_width()
+        return line
 
     def _draw_prompt_line(self, icon: pygame.Surface, text: str, top: int) -> int:
         """Blits one icon + text prompt line centered at `top`, returning
