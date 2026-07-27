@@ -15,6 +15,27 @@ uv run python __main__.py
 
 If you forgot `--recurse-submodules`: `git submodule update --init`.
 
+### Building a distributable
+
+`uv sync --group build && uv run pyinstaller artifical-chaos.spec --noconfirm`
+produces a standalone onedir bundle in `dist/artifical-chaos/` (bundling
+`assets/` — no `config/` tree here, see the plain-constants note below); the
+tag-triggered `.github/workflows/release.yml` (`git tag v0.1.0 && git push
+origin v0.1.0`, or "Run workflow" for a build-only dry run) builds Windows/
+macOS/Linux zips, publishes a GitHub Release, and pushes each to itch.io
+(`umutcanekinci/artifical-chaos`, needs a `BUTLER_API_KEY` repo secret).
+Unlike chokepoint/highrise/hunted, `__main__.py` does **not** unconditionally
+chdir into a resource root — that would contradict this file's own "assumes
+cwd is the repo root" note for running from source (matches `pyproject.toml`'s
+`pythonpath` and how CI invokes it). Instead it chdirs into `sys._MEIPASS`
+*only* when `sys.frozen` is set (i.e. only inside a PyInstaller build, where
+`artifical-chaos.spec` unpacks `assets/` there regardless of onedir/onefile
+mode) — verified by actually running a local onedir build headlessly
+(`SDL_VIDEODRIVER=dummy`) and confirming it stays up instead of crashing on
+a missing asset path. No logo asset yet, so there's no icon-generation step
+(unlike chokepoint's `scripts/make_icon.py`) — `artifical-chaos.spec` falls
+back to PyInstaller's default icon until one exists.
+
 ## Testing
 
 ```bash
