@@ -5,6 +5,7 @@ from pygame_core.application import Application
 from pygame_core.ecs.game_object_list import GameObjectList
 from pygame_core.image import load_image
 from pygame_core.asset_path import ImagePath
+from pygame_core.splash_screen import SplashScreen
 
 from util.constants import *
 from gameplay.camera import FollowCamera
@@ -32,12 +33,23 @@ class Game(Application):
         self.mouse.set_cursor_visible(False)
         self.cursor = load_image(ImagePath("mouse-pointer", "ui"))
 
+        self.splash = SplashScreen([ImagePath("pygame_logo", "branding")],
+                                   fade_ms=SPLASH_FADE_MS, hold_ms=SPLASH_HOLD_MS)
+
         # Win/lose (see GDD.md): victory is holding every Flag until it's
         # captured (gameplay/flag.py) -- richer lose states beyond player
         # death are still deferred.
         self.game_over = False
         self.end_message = ""
         self._end_font = pygame.font.SysFont("Arial", 96, bold=True)
+
+    def run(self):
+        # SplashScreen runs its own loop with direct pygame.display.update()
+        # calls, bypassing Application._present()'s scale step -- draw it
+        # straight onto the real display surface rather than the offscreen
+        # logical canvas, or it would never actually reach the screen.
+        self.splash.run(self.display_surface, self.clock, self._fps)
+        super().run()
 
     @override
     def handle_event(self, event) -> None:

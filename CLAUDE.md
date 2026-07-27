@@ -55,6 +55,8 @@ uv run python scripts/smoke_test.py                       # headless boot check
 
 `Game` (`src/app/game.py`) extends `pygame_core.Application` directly — no panel/scene system, no YAML config. `util/constants.py` holds plain Python constants (window size, sprite scale, tuning numbers) in place of the `config/settings.yaml` pattern used by chokepoint/highrise/standoff.
 
+`Game.run()` overrides `Application.run()` to show a `pygame_core.SplashScreen` (`assets/images/branding/pygame_logo.png`, fade `SPLASH_FADE_MS`/hold `SPLASH_HOLD_MS`) before handing off to `super().run()` — same asset, same values, and the same one-image fade-then-hold pattern chokepoint/highrise/hunted/standoff all use. It's constructed in `__init__` (needs a display surface for `convert_alpha()`, already up by then) and run directly against `self.display_surface`/`self.clock`/`self._fps` rather than through `Application`'s own scaled `self.window`/`_present()` path — `SplashScreen.run()` calls `pygame.display.update()` itself each frame, so drawing onto the offscreen logical canvas instead would never actually reach the screen.
+
 ### Subsystems wired in `Game.__init__`
 
 | Object | Class | Responsibility |

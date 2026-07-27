@@ -12,6 +12,12 @@ FRICTION = 0.1
 RANK_SIZE = 24
 MAX_RANK = 15
 
+# Startup splash (pygame_core.SplashScreen): fade-in then hold, per image --
+# same values as chokepoint/highrise/hunted/standoff, which all show the
+# same pygame_logo.png this way.
+SPLASH_FADE_MS = 1500
+SPLASH_HOLD_MS = 1000
+
 # Flag capture (gameplay/flag.py) -- the v1 win condition ("defeat all
 # drones") has been replaced by this richer one: hold every flag until it's
 # fully captured. A flag can only progress while the player or an in-army
