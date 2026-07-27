@@ -1,0 +1,115 @@
+<h1>Artificial Chaos</h1>
+<p>Artificial Chaos is a 2D top-down squad-combat game prototype built with <a target="_blank" href="https://github.com/pygame-community/pygame-ce">pygame-ce</a>. A rogue AI called <strong>ARGUS</strong> has seized human infrastructure and, through it, human minds &mdash; soldiers across the map are still alive, still human, but dormant, standing idle until something snaps them out of it. You're the <strong>Squad Leader</strong>, the last person still in control of your own mind (an off-grid forward position kept you outside ARGUS's mass suppression signal), and your commlink still runs pre-ARGUS firmware &mdash; which is why simply walking up to a dormant soldier is enough to free them.</p>
+<p><img style="max-width: 100%;" alt="Gameplay Preview" src="https://raw.githubusercontent.com/umutcanekinci/artifical-chaos/main/docs/preview.gif"></p>
+<h2>Gameplay</h2>
+<p>Move the Squad Leader around the map. Get close to a dormant soldier and they join your army, following you while spreading out to avoid crowding each other. Hold the left mouse button to fire your sidearm at the nearest of ARGUS's combat drones in range &mdash; ranged attacks flash a muzzle, a tracer flies to the target, and a spark/blood-spatter hits home; drones burst into an explosion on death. Recruited soldiers auto-fight nearby drones too, entirely on their own &mdash; there's no per-unit targeting, every soldier picks its own nearest threat. Every objective flag spawns with a guardian drone and keeps reinforcing itself with more while it stays uncaptured; clear the area, then hold the flag (with the Squad Leader or a recruited soldier, uncontested by a nearby drone) until it locks in. Capture every flag on the map to win; the Squad Leader dying ends the run. Capturing a flag also ranks you up, buffing your HP, speed, fire rate, or damage.</p>
+<p>Two mechanics turn squad combat into an active decision instead of something that just happens in the background: your soldiers only actually land a hit while <em>you've</em> stopped moving (they still aim the instant a target's in range, they just don't connect until you hold still) &mdash; and Tab toggles the whole squad between <strong>Engage</strong> (spread out and fight independently) and <strong>Guard</strong> (a tight escort formation that ignores threats far from you). Neither ever lets you pick who a soldier shoots at &mdash; that's a deliberate pillar of the game, not a missing feature.</p>
+<h3>Entities</h3>
+<table border="1" style="width: 100%; border-collapse: collapse;">
+  <thead>
+    <tr>
+      <th style="padding: 8px; text-align: left;">Entity</th>
+      <th style="padding: 8px; text-align: left;">Sprite(s)</th>
+      <th style="padding: 8px; text-align: left;">Behaviour</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding: 8px;">Squad Leader (player)</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">SquadLeader.png</code></td>
+      <td style="padding: 8px;">WASD/arrow movement with friction, footprint trail, recruits nearby soldiers, rank insignia, fires a sidearm at the nearest drone in range, toggles squad stance</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px;">Soldier (6 classes)</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Assault</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Sniper</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">MachineGunner</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">AntiTank</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Grenadier</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">RadioOperator</code></td>
+      <td style="padding: 8px;">Recruited on proximity, then follows/avoids crowding and auto-engages the nearest drone in range; Grenadier throws splash-damage grenades, RadioOperator calls in reinforcements instead of fighting</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px;">Drone (5 types, ARGUS's combat arm)</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Scarab</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Spider</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Hornet</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Wasp</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Centipede</code></td>
+      <td style="padding: 8px;">Aggros within range, chases, then melees or fires; Hornet kites at range instead of holding ground; Centipede is a genuinely segmented multi-part body</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px;">Objective flag</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">objective-flag.png</code>, <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">objective-pulse.png</code></td>
+      <td style="padding: 8px;">Spawns a guardian drone and keeps reinforcing while uncaptured; fills in while held and uncontested, locks in once captured and grants a rank-up</td>
+    </tr>
+  </tbody>
+</table>
+<h3>Controls</h3>
+<table border="1" style="width: 100%; border-collapse: collapse;">
+  <thead>
+    <tr>
+      <th style="padding: 8px; text-align: left;">Action</th>
+      <th style="padding: 8px; text-align: left;">Input</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding: 8px;">Move</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">W</code> <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">A</code> <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">S</code> <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">D</code> / Arrow keys</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px;">Fire sidearm</td>
+      <td style="padding: 8px;">Left click (held)</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px;">Toggle squad stance (Engage / Guard)</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Tab</code></td>
+    </tr>
+    <tr>
+      <td style="padding: 8px;">Toggle debug overlay</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">F1</code></td>
+    </tr>
+    <tr>
+      <td style="padding: 8px;">Toggle fullscreen</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">F11</code></td>
+    </tr>
+    <tr>
+      <td style="padding: 8px;">Quit</td>
+      <td style="padding: 8px;"><code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">Esc</code></td>
+    </tr>
+  </tbody>
+</table>
+<h2>Status</h2>
+<p>Prototype, fully playable start to finish: all 6 soldier classes, all 5 drone types, flag-capture win/lose, rank-up bonuses, and a first pass of combat effects and balance are in. Built on my shared <a target="_blank" href="https://github.com/umutcanekinci/pygame-core">pygame_core</a> engine (vendored as a git submodule, like <a target="_blank" href="https://github.com/umutcanekinci/chokepoint">chokepoint</a>).</p>
+<h2>Requirements</h2>
+<ul>
+  <li>Python 3.12+</li>
+  <li><a target="_blank" href="https://github.com/pygame-community/pygame-ce">pygame-ce</a>, <a target="_blank" href="https://github.com/bitcraft/pytmx">pytmx</a> (resolved automatically from <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">pyproject.toml</code> / <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">uv.lock</code>)</li>
+  <li><a target="_blank" href="https://docs.astral.sh/uv/">uv</a> (optional but recommended)</li>
+</ul>
+<h2>Running the Game (Source)</h2>
+<pre style="background: #222; color: #eee; padding: 12px; border-radius: 5px; overflow-x: auto;"><code>git clone --recurse-submodules https://github.com/umutcanekinci/artifical-chaos.git
+cd artifical-chaos
+uv sync
+uv run python __main__.py</code></pre>
+<p>If you forgot <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">--recurse-submodules</code>: <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">git submodule update --init</code>.</p>
+<p>Without <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">uv</code>: <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">pip install .</code> then <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">python __main__.py</code>.</p>
+<h2>Project Layout</h2>
+<pre style="background: #222; color: #eee; padding: 12px; border-radius: 5px; overflow-x: auto;"><code>__main__.py            Entry point &mdash; injects src/ + src/pygame_core/ onto sys.path, runs Game()
+src/app/game.py         Game (extends pygame_core.Application) &mdash; update/draw orchestration
+src/gameplay/map.py     Tiled map loader, obstacles, flag/drone/soldier spawning
+src/gameplay/player.py  Squad Leader &mdash; movement, sidearm, rank-ups, squad stance toggle
+src/gameplay/soldier.py Recruitable soldiers (6 classes) &mdash; follow/avoid/auto-engage
+src/gameplay/robot.py   Drone base class + 5 concrete types (aggro/chase/attack AI)
+src/gameplay/flag.py    Objective flags &mdash; capture progress, contest, reinforcement spawner
+src/gameplay/combat.py  Shared hitscan combat primitives
+src/gameplay/effects.py Cosmetic combat VFX (muzzle flash, tracer, explosions, smoke, ...)
+src/util/constants.py   Tuning constants (stats, ranges, cooldowns, rank bonuses)
+src/pygame_core/        Shared engine (git submodule)
+assets/                 Images (soldiers, robots, effects, UI), tileset + Tiled map</code></pre>
+<p>See <a target="_blank" href="https://github.com/umutcanekinci/artifical-chaos/blob/main/CLAUDE.md">CLAUDE.md</a> for the full architecture overview and <a target="_blank" href="https://github.com/umutcanekinci/artifical-chaos/blob/main/GDD.md">GDD.md</a> for the full story/design doc.</p>
+<h2>Credits</h2>
+<p>Art from <a target="_blank" href="https://mattwalkden.itch.io/">mattwalkden</a>'s Free Robot Warfare Pack &mdash; released into the public domain under <a target="_blank" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>. A written credit is not required but appreciated.</p>
+<h2>Contributing</h2>
+<ol>
+  <li>Fork this repository.</li>
+  <li>Clone your fork: <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">git clone --recurse-submodules https://github.com/&lt;your-username&gt;/artifical-chaos.git</code></li>
+  <li>Create a branch: <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">git checkout -b feature/&lt;your-feature&gt;</code></li>
+  <li>Commit + push: <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">git commit -am "&lt;message&gt;" && git push origin feature/&lt;your-feature&gt;</code></li>
+  <li>Open a pull request.</li>
+</ol>
+<h2>Author & License</h2>
+<p>Created by Umutcan Ekinci &mdash; <a href="mailto:umutcannekinci@gmail.com">umutcannekinci@gmail.com</a>. See also the <a target="_blank" href="https://github.com/umutcanekinci/artifical-chaos/contributors">contributors</a>.</p>
+<p>Distributed under the MIT License. See <a target="_blank" href="https://github.com/umutcanekinci/artifical-chaos/blob/main/LICENSE">LICENSE</a> for details.</p>
