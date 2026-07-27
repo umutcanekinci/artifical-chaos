@@ -85,6 +85,12 @@ class Map(TiledMap):
         self.image = pygame.transform.scale_by(self.pre_render(alpha=True), SCALE_FACTOR)
         self.rect = self.image.get_rect()
 
+        # Overwritten by spawn_objects() if the tmx has a "spawnPoint"
+        # object (it always should -- see the "spawn" objectgroup); None by
+        # default just so a map that somehow lacks one fails loudly at
+        # Player construction instead of silently on a typo'd attribute.
+        self.spawn_point = None
+
         self.spawn_objects()
         self.spawn_tile_colliders()
         self.spawn_decorative_obstacles()
@@ -120,7 +126,9 @@ class Map(TiledMap):
                 flag_index += 1
 
             if "spawnPoint" in obj.name:
-                self.spawn_point = obj.x + self.tile_width / 2, obj.y + self.tile_height / 2
+                x = obj.x * SCALE_FACTOR + self.tile_width / 2
+                y = obj.y * SCALE_FACTOR + self.tile_height / 2
+                self.spawn_point = (x, y)
 
     def spawn_tile_colliders(self) -> None:
         """Spawn an Obstacle for every placed tile whose gid carries a Tiled

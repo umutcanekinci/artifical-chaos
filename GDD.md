@@ -88,7 +88,7 @@ rank-up picks 2 distinct stats at random out of `{HP, move speed, fire rate,
 fire damage}` and buffs each by a fixed step (`util/constants.py`'s
 `RANK_UP_*_BONUS`) — dropping to 1 stat per rank-up once a map has 15
 (`MAX_RANK`) or more flags, since that many rank-ups will touch every stat
-naturally anyway without needing to double up (this map's 9 flags stay under
+naturally anyway without needing to double up (this map's 10 flags stay under
 that threshold, so every rank-up here still buffs 2). Each stat picked pops
 a colored floating label ("+HP", "+SPD", "+RATE", "+DMG") that rises above
 the Squad Leader and fades (`gameplay/effects.py`'s `FloatingText`). First-pass
@@ -326,7 +326,7 @@ further than the ring you can see (a plain circular check still — the
 smaller axis keeps it inside the ellipse rather than trying to match its
 shape exactly). `FLAG_CAPTURE_RATE` also went from 20%/s to 35%/s (~2.9s
 to capture uncontested instead of 5s) — felt too slow, especially now that
-9 flags means capturing several per run.
+10 flags means capturing several per run.
 
 `Game._check_end_conditions()` (`src/app/game.py`) declares VICTORY once
 `self.flags and all(flag.captured for flag in self.flags)`. Player death is
@@ -450,12 +450,24 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     undoing the drone-hp pass above outright (Centipede's 400 hp
     specifically). Worth revisiting once this pass is played, with some
     cost attached if it comes back (a cooldown, a range limit, etc.).
-20. ~~Startup polish: pygame splash + title card + controls tutorial~~
-    **done** — `Game.run()` now shows a two-slide `SplashScreen` (engine
-    credit, then AI-generated title art) before the game loop starts (see
-    CLAUDE.md's Entry point section), and a linear MOVE → FIRE → SQUAD
-    STANCE onboarding overlay (`gameplay/tutorial.py`) plays out over a
-    run's first few seconds using Kenney's CC0 input-prompts icons (see
-    ASSETS.md). None of this changes any gameplay system — pure
-    presentation/onboarding polish once the core loop above was judged
-    feature-complete.
+20. ~~Startup/end-screen polish: pygame splash + title card + controls
+    tutorial + dedicated spawn point + restart~~ **done** — `Game.run()`
+    now shows a two-slide `SplashScreen` (engine credit, then AI-generated
+    title art) before the game loop starts (see CLAUDE.md's Entry point
+    section), and a linear MOVE → FIRE → SQUAD STANCE onboarding overlay
+    (`gameplay/tutorial.py`) plays out over a run's first few seconds
+    using Kenney's CC0 input-prompts icons (see ASSETS.md) — MOVE shows
+    both a WASD and an arrow-key cluster (physical keyboard cross layout,
+    same code for both) joined by "OR", since either works. The tmx's map
+    center never had a real design reason behind it — the player just
+    spawned there because nothing else was wired up — so it's been
+    replaced with a proper `"spawnPoint"` object (a dedicated `"spawn"`
+    objectgroup, checked against every flag and wall before being placed).
+    GAME OVER / VICTORY now also show a "press any key or click to
+    restart" prompt with a Kenney key-icon, and `Game.restart()` rebuilds
+    the run from scratch on any key/click there (Escape/F1/F11 excluded,
+    since those stay reserved for quit/debug/fullscreen) — VICTORY adds a
+    second "press Esc to exit" line, since a won run is more likely to be
+    the player's stopping point than a lost one. None of this changes any
+    gameplay system — pure presentation/onboarding polish once the core
+    loop above was judged feature-complete.

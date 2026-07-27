@@ -1,5 +1,9 @@
+import pygame
+
 from gameplay.map import Map, RockObstacle, _collider_local_rect
-from util.constants import FLAG_CONTEST_RADIUS, ROCK_OBSTACLE_COUNT, ROCK_OBSTACLE_FRAME_IDS, ROCK_OBSTACLE_SIZE
+from util.constants import (
+    FLAG_CONTEST_RADIUS, ROCK_OBSTACLE_COUNT, ROCK_OBSTACLE_FRAME_IDS, ROCK_OBSTACLE_SIZE, SCALE_FACTOR,
+)
 
 
 class FakePoint:
@@ -54,6 +58,29 @@ def test_map_spawn_objects_skips_nameless_objects(game):
     assert len(game.flags) > 0
     assert len(game.soldiers) == len(game.flags)
     assert len(game.robots) == len(game.flags)
+
+
+def test_map_spawn_point_is_parsed_and_scaled(game):
+    # Regression test: the "spawnPoint" branch used to be missing the
+    # * SCALE_FACTOR the "flag" branch right above it has, so it pointed at
+    # a raw tmx tile-unit coordinate instead of the actual scaled world
+    # position -- off by a factor of SCALE_FACTOR from where the flag/
+    # drone/soldier objects placed right next to it end up. Derives the
+    # expected value from the tmx object itself rather than a hardcoded
+    # literal, so repositioning "spawnPoint" in Tiled doesn't break this.
+    m = Map(game)
+    spawn_obj = next(obj for obj in m.tmx.objects if obj.name == "spawnPoint")
+    expected = (spawn_obj.x * SCALE_FACTOR + m.tile_width / 2, spawn_obj.y * SCALE_FACTOR + m.tile_height / 2)
+
+    assert m.spawn_point == expected
+
+
+def test_map_spawn_point_does_not_collide_with_a_wall(game):
+    m = Map(game)
+
+    test_rect = pygame.Rect(0, 0, 48, 48)
+    test_rect.center = m.spawn_point
+    assert not any(test_rect.colliderect(w.rect) for w in game.walls)
 
 
 def test_map_spawns_visible_collidable_rock_obstacles(game):

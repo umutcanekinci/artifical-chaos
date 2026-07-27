@@ -20,6 +20,7 @@ class FakeMap:
     def __init__(self, game):
         self.game = game
         self.rect = FakeRect()
+        self.spawn_point = (150, 250)
 
 
 class FakePlayer:
@@ -86,7 +87,7 @@ def test_restart_positions_the_player_and_camera_from_the_fresh_map(monkeypatch)
 
     Game.restart(fake)
 
-    assert fake.player.position == fake.map.rect.center
+    assert fake.player.position == fake.map.spawn_point
     assert fake.camera.map_width == fake.map.rect.width
     assert fake.camera.map_height == fake.map.rect.height
 

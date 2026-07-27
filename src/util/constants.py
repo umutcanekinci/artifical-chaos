@@ -27,7 +27,11 @@ SPLASH_HOLD_MS = 1000
 # mouse style is bundled (no gamepad platforms, no Double/Vector/Fonts
 # variants), since this game has no gamepad support to prompt for.
 TUTORIAL_ICON_SIZE = 48
-TUTORIAL_ICON_GAP = 8
+TUTORIAL_ICON_GAP = 0
+# Wider gap between whole key-groups (and the "OR" connector between them)
+# than between icons within one group -- MOVE shows a WASD cluster and an
+# arrow-key cluster side by side, connected by "OR", since either works.
+TUTORIAL_GROUP_GAP = 16
 TUTORIAL_FONT_SIZE = 22
 TUTORIAL_PANEL_PADDING = 12
 TUTORIAL_PANEL_ALPHA = 170
