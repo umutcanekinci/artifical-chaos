@@ -11,7 +11,7 @@ from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips, add_oneshot_clip
 from gameplay.combat import apply_damage, find_nearest, ready_to_attack
-from gameplay.effects import Explosion, HitSpatter, MuzzleFlash, Tracer
+from gameplay.effects import Explosion, HitSpatter, LaserFlash, MuzzleFlash, Smoke, Tracer
 from gameplay.ui import draw_health_bar
 
 
@@ -39,6 +39,8 @@ class Drone(GameObject):
         self.melee_cooldown_ms = stats["melee_cooldown_ms"]
         self.fire_cooldown_ms = stats["fire_cooldown_ms"]
         self.has_destroyed_clip = stats["destroyed_row"] is not None
+        self.muzzle_effect = stats["muzzle_effect"]
+        self.stand_off_range = stats["stand_off_range"]
 
         self.acceleration = Vector2()
         self.velocity = Vector2()
@@ -85,8 +87,15 @@ class Drone(GameObject):
             self.status = "melee"
             self.attack(target, self.melee_damage, self.melee_cooldown_ms)
         elif distance <= self.fire_range:
-            self.acceleration = Vector2()
             self.status = "fire"
+            if self.stand_off_range > 0 and distance < self.stand_off_range:
+                # Kite: back away while still firing instead of holding
+                # ground, so a target that closes in doesn't just let a
+                # ranged-only drone stand there and trade hits at melee
+                # range with nothing to hit back with.
+                self.acceleration = -delta.normalize() * self.ms
+            else:
+                self.acceleration = Vector2()
             self.attack(target, self.fire_damage, self.fire_cooldown_ms)
         else:
             self.status = "walking"
@@ -101,7 +110,10 @@ class Drone(GameObject):
             return
         self.last_attack_time = now
         if self.status == "fire":  # melee has no muzzle/tracer -- no gun to flash
-            MuzzleFlash(self.game, self.position, self.facing)
+            if self.muzzle_effect == "laser":
+                LaserFlash(self.game, self.position, self.facing)
+            else:
+                MuzzleFlash(self.game, self.position, self.facing)
             Tracer(self.game, self.position, target.position)
         HitSpatter(self.game, target.position)
         if apply_damage(target, damage):
@@ -110,14 +122,18 @@ class Drone(GameObject):
     def move(self) -> None:
         self.velocity = self.acceleration * self.game.delta_time * self.ms
         self.velocity -= self.velocity * FRICTION
-        self.position += self.velocity * self.game.delta_time
 
-        self.rect.center = self.hit_rect.center = self.position
+        self.position.x += self.velocity.x * self.game.delta_time
+        self.hit_rect.centerx = self.position.x
+        if collide(self, 'x', self.game.walls):
+            self.position.x = self.hit_rect.centerx
 
-        self.hit_rect.centerx += self.velocity.x
-        collide(self, 'x', self.game.walls)
-        self.hit_rect.centery += self.velocity.y
-        collide(self, 'y', self.game.walls)
+        self.position.y += self.velocity.y * self.game.delta_time
+        self.hit_rect.centery = self.position.y
+        if collide(self, 'y', self.game.walls):
+            self.position.y = self.hit_rect.centery
+
+        self.hit_rect.center = self.rect.center = self.position
 
     def die(self) -> None:
         if self.status == "destroyed" or not self.active:
@@ -125,6 +141,7 @@ class Drone(GameObject):
         self.acceleration = Vector2()
         self.velocity = Vector2()
         Explosion(self.game, self.position)
+        Smoke(self.game, self.position)
         if self.has_destroyed_clip:
             self.status = "destroyed"
             self.death_time = pygame.time.get_ticks()
@@ -152,6 +169,78 @@ class Drone(GameObject):
         draw_health_bar(surface, camera, self.rect, self.hp, self.max_hp)
 
 
+class CentipedeSegment(GameObject):
+    """One trailing body segment behind a Centipede's head -- purely
+    visual, no hp/combat/collision of its own; the head is the only
+    entity in game.robots, so it's the only thing any attacker ever
+    targets or damages. `row` picks which of Centipede.png's plain
+    body-segment frames (see CENTIPEDE_SEGMENT_ROWS) this segment plays,
+    purely for visual variety along the body."""
+
+    def __init__(self, game, position, row: int) -> None:
+        super().__init__(name="centipede_segment")
+        self.position = Vector2(position)
+        self.rect.size = (SPRITE_SIZE * SCALE_FACTOR, SPRITE_SIZE * SCALE_FACTOR)
+        self.rect.center = self.position
+
+        self.add_component(SpriteRenderer2D)
+        self.add_component(Animator)
+        add_directional_clips(self, ImagePath("Centipede", "robots"), {"idle": row})
+        self.get_component(Animator).play("idle_0")
+
+        game.all_sprites.append(self)
+
+    def follow(self, leader_position: Vector2) -> None:
+        """Snaps toward leader_position just enough to hold
+        CENTIPEDE_SEGMENT_GAP -- a chain-link constraint solved fresh each
+        frame (not a spring), so segments hold a fixed distance instead of
+        oscillating or drifting loose over time."""
+        to_leader = leader_position - self.position
+        distance = to_leader.length()
+        if distance > CENTIPEDE_SEGMENT_GAP:
+            self.position += to_leader.normalize() * (distance - CENTIPEDE_SEGMENT_GAP)
+        self.rect.center = self.position
+
+
+class Centipede(Drone):
+    """The one segmented drone type: a heavy, slow siege unit (GDD role)
+    whose body is a chain of CentipedeSegment instances trailing the head.
+    Only the head (self) has hp/combat/wall-collision -- engage()/attack()/
+    move() are all inherited from Drone unchanged; the only new behavior
+    is updating the segment chain each frame and cleaning it up on death.
+    Segments spawn already spaced out behind the head (not stacked on top
+    of it) so an idle, undiscovered Centipede reads as a body immediately
+    instead of looking like a single ball until it first moves."""
+
+    def __init__(self, game, position) -> None:
+        super().__init__(game, position, drone_type="Centipede")
+        self.segments = [
+            CentipedeSegment(game, Vector2(position) - Vector2(0, CENTIPEDE_SEGMENT_GAP * (i + 1)), row)
+            for i, row in enumerate(CENTIPEDE_SEGMENT_ROWS)
+        ]
+
+    @override
+    def update(self) -> None:
+        super().update()
+        if not self.active:
+            return
+
+        leader = self.position
+        for segment in self.segments:
+            segment.follow(leader)
+            leader = segment.position
+
+    @override
+    def die(self) -> None:
+        was_active = self.active
+        super().die()
+        if was_active and not self.active:
+            for segment in self.segments:
+                segment.active = False
+                Explosion(self.game, segment.position)
+                Smoke(self.game, segment.position)
+
+
 class Scarab(Drone):
     def __init__(self, game, position) -> None:
         super().__init__(game, position, drone_type="Scarab")
@@ -173,4 +262,4 @@ class Wasp(Drone):
 
 
 # Spawn-time lookup for map.py, keyed the same as DRONE_TYPES.
-DRONE_CLASSES = {"Scarab": Scarab, "Spider": Spider, "Hornet": Hornet, "Wasp": Wasp}
+DRONE_CLASSES = {"Scarab": Scarab, "Spider": Spider, "Hornet": Hornet, "Wasp": Wasp, "Centipede": Centipede}

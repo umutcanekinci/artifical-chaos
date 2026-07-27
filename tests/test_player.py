@@ -5,8 +5,13 @@ import pygame
 import pytest
 from pygame.math import Vector2
 
+import gameplay.player as player_module
 from gameplay.player import Footprint, Player
-from util.constants import FOOTPRINT_DURATION, FRICTION, PLAYER_FIRE_COOLDOWN_MS, PLAYER_FIRE_RANGE
+from util.constants import (
+    FOOTPRINT_DURATION, FRICTION, PLAYER_FIRE_COOLDOWN_MS, PLAYER_FIRE_DAMAGE, PLAYER_FIRE_RANGE,
+    RANK_UP_DAMAGE_BONUS, RANK_UP_FIRE_RATE_BONUS_MS, RANK_UP_FIRE_RATE_MIN_MS, RANK_UP_HP_BONUS,
+    RANK_UP_MANY_RANKS_THRESHOLD, RANK_UP_SPEED_BONUS, RANK_UP_STATS_FEW_RANKS, RANK_UP_STATS_MANY_RANKS,
+)
 
 
 def press(game, *keys) -> None:
@@ -148,6 +153,49 @@ def test_move_applies_friction_and_updates_position(game):
     assert p.position == Vector2(0, 0) + expected_velocity * game.delta_time
 
 
+def test_move_travels_the_same_distance_in_opposite_directions(game):
+    # Regression test: once `hit_rect` (an int-only pygame.Rect) became the
+    # per-frame position accumulator, its sub-pixel remainder got truncated
+    # away every frame -- asymmetrically, since repeatedly flooring `int + v`
+    # advances by floor(v) per step while flooring `int - v` advances by
+    # -ceil(v), so movement in the negative direction on an axis (left, up)
+    # consistently outran the positive direction (right, down).
+    def travel(direction: Vector2) -> float:
+        p = Player(game, (100000, 100000))
+        p.acceleration = Vector2(direction) * p.ms
+        game.delta_time = 1 / 60
+        for _ in range(120):
+            p.move()
+        return (p.position - Vector2(100000, 100000)).length()
+
+    assert travel(Vector2(1, 0)) == pytest.approx(travel(Vector2(-1, 0)))
+    assert travel(Vector2(0, 1)) == pytest.approx(travel(Vector2(0, -1)))
+
+
+def test_move_stops_at_a_wall_instead_of_passing_through(game):
+    # Regression test: `move()` used to update `self.position` unconditionally
+    # from velocity, then only nudge the separate `hit_rect` for collision --
+    # a nudge that was thrown away every next frame since hit_rect was reset
+    # from `self.position` again, so held-key movement walked straight through
+    # any wall no matter how many frames it ran for.
+    class FakeWall:
+        def __init__(self, rect):
+            self.rect = rect
+
+    wall = FakeWall(pygame.Rect(100, -50, 20, 100))
+    game.walls = [wall]
+
+    p = Player(game, (0, 0))
+    p.acceleration = Vector2(1, 0)
+    game.delta_time = 1 / 60
+
+    for _ in range(180):  # far more time than needed to reach the wall
+        p.move()
+
+    assert p.position.x <= wall.rect.left
+    assert p.hit_rect.right <= wall.rect.left + 0.1
+
+
 def test_get_soldier_recruits_soldiers_within_range(game):
     from gameplay.soldier import Soldier
 
@@ -161,6 +209,31 @@ def test_get_soldier_recruits_soldiers_within_range(game):
     assert far.is_in_army is False
 
 
+def test_squad_stance_defaults_to_engage(game):
+    p = Player(game, (0, 0))
+    assert p.squad_stance == "engage"
+
+
+def test_toggle_squad_stance_flips_between_engage_and_guard(game):
+    p = Player(game, (0, 0))
+
+    p.toggle_squad_stance()
+    assert p.squad_stance == "guard"
+
+    p.toggle_squad_stance()
+    assert p.squad_stance == "engage"
+
+
+def test_toggle_squad_stance_spawns_feedback_text(game):
+    from gameplay.effects import FloatingText
+    p = Player(game, (0, 0))
+
+    p.toggle_squad_stance()
+
+    kinds = [type(o) for o in game.all_sprites]
+    assert FloatingText in kinds
+
+
 def test_rank_up_increments_rank(game):
     p = Player(game, (0, 0))
     assert p.rank == 0
@@ -168,6 +241,94 @@ def test_rank_up_increments_rank(game):
     p.rank_up()
 
     assert p.rank == 1
+
+
+def test_rank_up_beyond_max_rank_does_not_crash_the_icon_lookup(game):
+    # Regression test: get_rank_image() used to compute its sheet column as
+    # `5 + self.rank % 6`, which reaches column 10 once rank % 6 == 5 --
+    # one past squad-insignia.png's last valid column (it's 240x216, i.e.
+    # 10 columns @RANK_SIZE, 0-9) -- raising a subsurface ValueError. Never
+    # caught before because rank_up() was dead code until Flag.update()
+    # started calling it, and no test called it more than once.
+    p = Player(game, (0, 0))
+    for _ in range(30):  # comfortably past both the old bug (rank 5) and MAX_RANK
+        p.rank_up()  # must not raise
+
+    assert p.rank == 30
+
+
+def test_rank_up_applies_bonuses_only_to_the_picked_stats(game, monkeypatch):
+    monkeypatch.setattr(player_module.random, "sample", lambda pool, k: ["hp", "damage"])
+    p = Player(game, (0, 0))
+
+    p.rank_up()
+
+    assert p.max_hp == 100 + RANK_UP_HP_BONUS
+    assert p.hp == 100 + RANK_UP_HP_BONUS
+    assert p.fire_damage == PLAYER_FIRE_DAMAGE + RANK_UP_DAMAGE_BONUS
+    # not picked this time -- unchanged
+    assert p.ms == 100
+    assert p.fire_cooldown_ms == PLAYER_FIRE_COOLDOWN_MS
+
+
+def test_rank_up_speed_and_fire_rate_bonuses(game, monkeypatch):
+    monkeypatch.setattr(player_module.random, "sample", lambda pool, k: ["speed", "fire_rate"])
+    p = Player(game, (0, 0))
+
+    p.rank_up()
+
+    assert p.ms == 100 + RANK_UP_SPEED_BONUS
+    assert p.fire_cooldown_ms == PLAYER_FIRE_COOLDOWN_MS - RANK_UP_FIRE_RATE_BONUS_MS
+
+
+def test_rank_up_fire_rate_bonus_does_not_go_below_the_floor(game, monkeypatch):
+    monkeypatch.setattr(player_module.random, "sample", lambda pool, k: ["fire_rate"])
+    p = Player(game, (0, 0))
+    p.fire_cooldown_ms = RANK_UP_FIRE_RATE_MIN_MS + 5
+
+    p.rank_up()
+
+    assert p.fire_cooldown_ms == RANK_UP_FIRE_RATE_MIN_MS
+
+
+def test_rank_up_picks_two_stats_when_few_ranks_are_achievable(game, monkeypatch):
+    game.flags = [object()] * (RANK_UP_MANY_RANKS_THRESHOLD - 1)
+    seen_k = {}
+    def fake_sample(pool, k):
+        seen_k["k"] = k
+        return list(pool)[:k]
+    monkeypatch.setattr(player_module.random, "sample", fake_sample)
+    p = Player(game, (0, 0))
+
+    p.rank_up()
+
+    assert seen_k["k"] == RANK_UP_STATS_FEW_RANKS
+
+
+def test_rank_up_picks_one_stat_when_many_ranks_are_achievable(game, monkeypatch):
+    game.flags = [object()] * RANK_UP_MANY_RANKS_THRESHOLD
+    seen_k = {}
+    def fake_sample(pool, k):
+        seen_k["k"] = k
+        return list(pool)[:k]
+    monkeypatch.setattr(player_module.random, "sample", fake_sample)
+    p = Player(game, (0, 0))
+
+    p.rank_up()
+
+    assert seen_k["k"] == RANK_UP_STATS_MANY_RANKS
+
+
+def test_rank_up_spawns_one_floating_text_per_stat_picked(game, monkeypatch):
+    monkeypatch.setattr(player_module.random, "sample", lambda pool, k: ["hp", "damage"])
+    p = Player(game, (0, 0))
+    before = len(game.all_sprites)
+
+    p.rank_up()
+
+    new_sprites = game.all_sprites[before:]
+    assert len(new_sprites) == 2
+    assert all(s.name == "floating_text" for s in new_sprites)
 
 
 def test_footprint_grows_then_expires(game, fake_ticks):

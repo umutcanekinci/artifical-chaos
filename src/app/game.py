@@ -40,6 +40,11 @@ class Game(Application):
         self._end_font = pygame.font.SysFont("Arial", 96, bold=True)
 
     @override
+    def handle_event(self, event) -> None:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_TAB:
+            self.player.toggle_squad_stance()
+
+    @override
     def update(self):
         if self.game_over:
             return

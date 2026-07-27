@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from pygame.math import Vector2
 
-from gameplay.combat import apply_damage, find_nearest, ready_to_attack
+from gameplay.combat import apply_damage, find_all_in_range, find_nearest, ready_to_attack
 
 
 def make_entity(x, y, active=True):
@@ -56,6 +56,39 @@ def test_find_nearest_includes_a_candidate_exactly_at_max_range():
     at_edge = make_entity(100, 0)
 
     assert find_nearest(origin, [at_edge], max_range=100) is at_edge
+
+
+def test_find_all_in_range_returns_every_candidate_within_range():
+    origin = Vector2(0, 0)
+    near = make_entity(10, 0)
+    also_near = make_entity(20, 0)
+    far = make_entity(500, 0)
+
+    result = find_all_in_range(origin, [near, far, also_near], max_range=100)
+
+    assert len(result) == 2
+    assert near in result and also_near in result
+
+
+def test_find_all_in_range_returns_empty_list_with_no_candidates_in_range():
+    assert find_all_in_range(Vector2(0, 0), [make_entity(500, 0)], max_range=100) == []
+
+
+def test_find_all_in_range_skips_inactive_candidates():
+    origin = Vector2(0, 0)
+    dead = make_entity(10, 0, active=False)
+    alive = make_entity(20, 0, active=True)
+
+    result = find_all_in_range(origin, [dead, alive], max_range=100)
+
+    assert result == [alive]
+
+
+def test_find_all_in_range_includes_a_candidate_exactly_at_max_range():
+    origin = Vector2(0, 0)
+    at_edge = make_entity(100, 0)
+
+    assert find_all_in_range(origin, [at_edge], max_range=100) == [at_edge]
 
 
 def test_ready_to_attack_false_before_cooldown_elapses():

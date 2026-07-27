@@ -34,9 +34,20 @@ class FakeGame:
     False for any unpressed key, so unset entries here default the same way
     instead of KeyErroring.
 
-    self.player defaults to a plain stand-in (position/hp/active) rather
-    than None, since drones/soldiers read game.player.position every tick
-    regardless of whether the test cares about the real Player class.
+    self.player defaults to a plain stand-in (position/velocity/hp/active/
+    rank_up) rather than None, since drones/soldiers read game.player.
+    position every tick regardless of whether the test cares about the real
+    Player class, Flag.update() calls game.player.rank_up() the instant a
+    flag's progress reaches 100 (see gameplay/flag.py) -- a no-op stand-in
+    here means a test driving an unrelated flag to capture doesn't need to
+    know about rank-up at all -- and Soldier.engage() reads game.player.
+    velocity and game.player.squad_stance every tick too (see
+    SQUAD_ATTACK_MAX_PLAYER_SPEED / SQUAD_GUARD_* in util/constants.py),
+    defaulting to the zero vector and "engage" so a soldier test that
+    doesn't care about player movement/stance still gets treated as
+    "stationary" and unrestricted (able to actually land hits, same as
+    before the stance toggle existed) rather than erroring on a missing
+    attribute.
     """
 
     def __init__(self):
@@ -47,7 +58,9 @@ class FakeGame:
         self.robots: list = []
         self.keys: dict = defaultdict(bool)
         self.delta_time: float = 1 / 60
-        self.player = SimpleNamespace(position=Vector2(0, 0), hp=100, active=True)
+        self.player = SimpleNamespace(
+            position=Vector2(0, 0), velocity=Vector2(0, 0), hp=100, active=True, rank_up=lambda: None,
+            squad_stance="engage")
 
 
 @pytest.fixture

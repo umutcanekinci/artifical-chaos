@@ -1,3 +1,5 @@
+import random
+
 import pygame
 from pygame.math import Vector2
 from typing import override
@@ -13,7 +15,7 @@ from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
 from gameplay.combat import apply_damage, find_nearest, ready_to_attack
-from gameplay.effects import HitSpark, MuzzleFlash, Tracer
+from gameplay.effects import FloatingText, HitSpark, MuzzleFlash, Tracer
 from gameplay.ui import draw_health_bar
 
 
@@ -55,6 +57,8 @@ class Player(GameObject):
         self.max_hp = 100
         self.hp = self.max_hp
         self.ms = 100
+        self.fire_damage = PLAYER_FIRE_DAMAGE
+        self.fire_cooldown_ms = PLAYER_FIRE_COOLDOWN_MS
         self.rank = 0
         self.acceleration = Vector2()
         self.velocity = Vector2()
@@ -71,6 +75,7 @@ class Player(GameObject):
         self.last_footprint = 0
         self.last_attack_time = 0
         self.is_dead = False
+        self.squad_stance = "engage"
 
         self.add_component(SpriteRenderer2D)
         self.add_component(Animator)
@@ -86,17 +91,59 @@ class Player(GameObject):
         game.all_sprites.append(self)
 
     def get_rank_image(self) -> pygame.Surface:
-        frame = self.rank_sheet.frame(5 + self.rank % 6, self.rank // 5, RANK_SIZE, RANK_SIZE)
+        # squad-insignia.png is 240x216 (10x9 @RANK_SIZE); only columns 5-9
+        # are the actual insignia column-block (5 wide), so this must wrap
+        # with `% 5`, not `% 6` -- `% 6` used to reach col 10 (5 + 5), one
+        # past the sheet's last valid column (9), raising a subsurface
+        # ValueError. rank is also clamped to MAX_RANK here (not on
+        # self.rank itself, which keeps counting for rank-up purposes) as a
+        # second guard against the row math (rank // 5) ever overflowing
+        # the sheet's 9 rows too.
+        rank = min(self.rank, MAX_RANK)
+        frame = self.rank_sheet.frame(5 + rank % 5, rank // 5, RANK_SIZE, RANK_SIZE)
         return scale_by(frame, SCALE_FACTOR)
 
     def rank_up(self):
         self.rank += 1
         self.rank_image = self.get_rank_image()
 
+        stat_count = (RANK_UP_STATS_MANY_RANKS if len(self.game.flags) >= RANK_UP_MANY_RANKS_THRESHOLD
+                     else RANK_UP_STATS_FEW_RANKS)
+        stats = random.sample(list(RANK_UP_STAT_LABELS), min(stat_count, len(RANK_UP_STAT_LABELS)))
+
+        for i, stat in enumerate(stats):
+            self._apply_rank_bonus(stat)
+            offset_index = 2 * i - (len(stats) - 1)  # spreads picks out; centered for a single pick
+            FloatingText(self.game, self.rect.midtop, RANK_UP_STAT_LABELS[stat],
+                        RANK_UP_STAT_COLORS[stat], offset_index=offset_index)
+
+    def _apply_rank_bonus(self, stat: str) -> None:
+        if stat == "hp":
+            self.max_hp += RANK_UP_HP_BONUS
+            self.hp += RANK_UP_HP_BONUS
+        elif stat == "speed":
+            self.ms += RANK_UP_SPEED_BONUS
+        elif stat == "fire_rate":
+            self.fire_cooldown_ms = max(RANK_UP_FIRE_RATE_MIN_MS, self.fire_cooldown_ms - RANK_UP_FIRE_RATE_BONUS_MS)
+        elif stat == "damage":
+            self.fire_damage += RANK_UP_DAMAGE_BONUS
+
     def get_soldier(self):
         for soldier in self.game.soldiers:
             if (Vector2(soldier.rect.center) - Vector2(self.rect.center)).length() < 50:
                 soldier.add_to_army()
+
+    def toggle_squad_stance(self) -> None:
+        """Flips between "engage" (default -- every in-army soldier ranges
+        out independently to fight whatever's nearest, see Soldier.engage())
+        and "guard" (soldiers hold a tight escort formation and ignore
+        threats far from the commander). Bound to Tab in Game.handle_event().
+        Purely a stance switch, not a targeting command -- soldiers still
+        pick their own nearest target on their own, see SQUAD_GUARD_*
+        constants in util/constants.py."""
+        self.squad_stance = "guard" if self.squad_stance == "engage" else "engage"
+        FloatingText(self.game, self.rect.midtop, SQUAD_STANCE_LABELS[self.squad_stance],
+                    SQUAD_STANCE_COLORS[self.squad_stance])
 
     def walk(self):
         if self.game.keys[pygame.K_w] or self.game.keys[pygame.K_UP]:
@@ -134,14 +181,18 @@ class Player(GameObject):
     def move(self):
         self.velocity = self.acceleration * self.game.delta_time * self.ms
         self.velocity -= self.velocity * FRICTION
-        self.position += self.velocity * self.game.delta_time
 
-        self.rect.center = self.hit_rect.center = self.position
+        self.position.x += self.velocity.x * self.game.delta_time
+        self.hit_rect.centerx = self.position.x
+        if collide(self, 'x', self.game.walls):
+            self.position.x = self.hit_rect.centerx
 
-        self.hit_rect.centerx += self.velocity.x
-        collide(self, 'x', self.game.walls)
-        self.hit_rect.centery += self.velocity.y
-        collide(self, 'y', self.game.walls)
+        self.position.y += self.velocity.y * self.game.delta_time
+        self.hit_rect.centery = self.position.y
+        if collide(self, 'y', self.game.walls):
+            self.position.y = self.hit_rect.centery
+
+        self.hit_rect.center = self.rect.center = self.position
 
     def aim_at_mouse(self) -> None:
         mouse_world = self.game.camera.screen_to_world(self.game.mouse.position)
@@ -169,7 +220,7 @@ class Player(GameObject):
         self.status = "fire"
         target = find_nearest(self.position, self.game.robots, PLAYER_FIRE_RANGE)
         if target is not None:
-            self.attack(target, PLAYER_FIRE_DAMAGE, PLAYER_FIRE_COOLDOWN_MS)
+            self.attack(target, self.fire_damage, self.fire_cooldown_ms)
         return True
 
     @override

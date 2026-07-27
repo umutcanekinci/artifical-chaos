@@ -1,3 +1,5 @@
+import random
+
 import pygame
 from pygame.math import Vector2
 from typing import override
@@ -10,7 +12,8 @@ from pygame_core.asset_path import ImagePath
 
 from util.constants import *
 from gameplay.animation import scaled_row
-from gameplay.combat import find_nearest
+from gameplay.combat import find_nearest, ready_to_attack
+from gameplay.robot import DRONE_CLASSES
 from gameplay.ui import draw_radial_progress
 
 
@@ -18,7 +21,10 @@ class Flag(GameObject):
     """An objective marker that captures over time while held, and resists
     capture while a drone is nearby -- see FLAG_* constants in
     util/constants.py. Game._check_end_conditions() declares VICTORY once
-    every Flag on the map is captured."""
+    every Flag on the map is captured. While uncaptured, also keeps
+    spawning reinforcement drones near itself on a cooldown (_spawn_drone())
+    -- the original single guardian (Map.spawn_objects()) can die quickly,
+    which used to leave nothing contesting the flag at all."""
 
     def __init__(self, game, position):
         super().__init__(name="flag")
@@ -39,6 +45,9 @@ class Flag(GameObject):
         self.progress = 0.0
         self.captured = False
 
+        self.spawned_drones = []
+        self.last_spawn_time = 0
+
         game.all_sprites.append(self)
         game.flags.append(self)
 
@@ -51,11 +60,35 @@ class Flag(GameObject):
     def is_contested(self) -> bool:
         return find_nearest(Vector2(self.rect.center), self.game.robots, FLAG_CONTEST_RADIUS) is not None
 
+    def _spawn_drone(self) -> None:
+        """Spawns one more reinforcement drone near this flag, gated by
+        FLAG_SPAWN_COOLDOWN_MS and capped at FLAG_SPAWN_MAX_CONCURRENT
+        drones alive from this flag at once (tracked via self.spawned_drones,
+        pruned of anything already dead/purged each call) -- so a flag can't
+        flood the map with an unbounded pile of drones, just keep a steady
+        trickle going for as long as it stays uncaptured."""
+        now = pygame.time.get_ticks()
+        if not ready_to_attack(now, self.last_spawn_time, FLAG_SPAWN_COOLDOWN_MS):
+            return
+        self.spawned_drones = [d for d in self.spawned_drones if d.active]
+        if len(self.spawned_drones) >= FLAG_SPAWN_MAX_CONCURRENT:
+            return
+        self.last_spawn_time = now
+
+        offset = Vector2(random.uniform(-1, 1), random.uniform(-1, 1))
+        if offset.length() > 0:
+            offset.scale_to_length(random.uniform(0, FLAG_SPAWN_RADIUS))
+        drone_class = DRONE_CLASSES[random.choice(list(DRONE_CLASSES))]
+        drone = drone_class(self.game, Vector2(self.rect.center) + offset)
+        self.spawned_drones.append(drone)
+
     @override
     def update(self) -> None:
         super().update()
         if self.captured:
             return
+
+        self._spawn_drone()
 
         if self.is_contested():
             self.progress = max(0.0, self.progress - FLAG_DECAY_RATE * self.game.delta_time)
@@ -63,6 +96,7 @@ class Flag(GameObject):
             self.progress = min(100.0, self.progress + FLAG_CAPTURE_RATE * self.game.delta_time)
             if self.progress >= 100.0:
                 self.captured = True
+                self.game.player.rank_up()
 
     def draw_pulse(self, surface, camera) -> None:
         if self.captured:

@@ -26,6 +26,16 @@ def find_nearest(origin: Vector2, candidates, max_range: float):
     return nearest
 
 
+def find_all_in_range(origin: Vector2, candidates, max_range: float) -> list:
+    """AoE counterpart to find_nearest -- every candidate (same `.position`/
+    `.active` contract) within max_range of origin, not just the closest
+    one. Used by Grenadier-Class's splash attack (Soldier.attack())."""
+    origin = Vector2(origin)
+    return [candidate for candidate in candidates
+            if getattr(candidate, "active", True) is not False
+            and (Vector2(candidate.position) - origin).length() <= max_range]
+
+
 def ready_to_attack(now: int, last_attack_time: int, cooldown_ms: int) -> bool:
     return now - last_attack_time >= cooldown_ms
 

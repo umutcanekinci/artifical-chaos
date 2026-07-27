@@ -1,7 +1,12 @@
 from pygame.math import Vector2
 
-from gameplay.effects import Explosion, HitSpark, HitSpatter, MuzzleFlash, Tracer
-from util.constants import TRACER_DURATION_MS
+from gameplay.effects import (
+    BigExplosion, Explosion, FloatingText, Grenade, HitSpark, HitSpatter, LaserFlash, MuzzleFlash, Smoke, Tracer,
+)
+from util.constants import (
+    FLOATING_TEXT_DURATION_MS, FLOATING_TEXT_RISE_DISTANCE, FLOATING_TEXT_X_SPACING,
+    GRENADE_FLIGHT_MS, TRACER_DURATION_MS,
+)
 
 
 def play_until_finished(effect, fake_ticks, step_ms=15, max_iters=200) -> None:
@@ -41,10 +46,39 @@ def test_muzzle_flash_deactivates_once_its_clip_finishes_playing(game, fake_tick
 
 
 def test_hit_spark_hit_spatter_and_explosion_all_finish_and_deactivate(game, fake_ticks):
-    for cls in (HitSpark, HitSpatter, Explosion):
+    for cls in (HitSpark, HitSpatter, Explosion, BigExplosion, LaserFlash, Smoke):
         effect = cls(game, (0, 0))
         play_until_finished(effect, fake_ticks)
         assert effect.active is False
+
+
+def test_grenade_starts_at_the_attacker_and_ends_at_the_target(game, fake_ticks):
+    fake_ticks["t"] = 0
+    g = Grenade(game, (0, 0), (100, 0))
+
+    assert g.rect.center == (0, 0)
+    assert g in game.all_sprites
+
+
+def test_grenade_lerps_toward_the_target_over_its_flight(game, fake_ticks):
+    fake_ticks["t"] = 0
+    g = Grenade(game, (0, 0), (100, 0))
+
+    fake_ticks["t"] = GRENADE_FLIGHT_MS // 2
+    g.update()
+
+    assert 0 < g.rect.centerx < 100
+    assert g.active is True
+
+
+def test_grenade_deactivates_once_its_flight_duration_elapses(game, fake_ticks):
+    fake_ticks["t"] = 0
+    g = Grenade(game, (0, 0), (100, 0))
+
+    fake_ticks["t"] = GRENADE_FLIGHT_MS
+    g.update()
+
+    assert g.active is False
 
 
 def test_effects_face_the_direction_passed_in(game):
@@ -83,3 +117,41 @@ def test_tracer_deactivates_once_its_duration_elapses(game, fake_ticks):
     t.update()
 
     assert t.active is False
+
+
+def test_floating_text_spawns_centered_on_position(game, fake_ticks):
+    fake_ticks["t"] = 0
+    ft = FloatingText(game, (50, 50), "+HP", (80, 220, 80))
+
+    assert ft.rect.center == (50, 50)
+    assert ft in game.all_sprites
+    assert ft.name == "floating_text"
+
+
+def test_floating_text_offset_index_spreads_it_sideways(game, fake_ticks):
+    fake_ticks["t"] = 0
+    ft = FloatingText(game, (50, 50), "+DMG", (230, 80, 80), offset_index=-1)
+
+    assert ft.rect.centerx == 50 - FLOATING_TEXT_X_SPACING
+    assert ft.rect.centery == 50
+
+
+def test_floating_text_rises_over_its_duration(game, fake_ticks):
+    fake_ticks["t"] = 0
+    ft = FloatingText(game, (50, 50), "+SPD", (90, 170, 240))
+
+    fake_ticks["t"] = FLOATING_TEXT_DURATION_MS // 2
+    ft.update()
+
+    assert 50 - FLOATING_TEXT_RISE_DISTANCE < ft.rect.centery < 50
+    assert ft.active is True
+
+
+def test_floating_text_deactivates_once_its_duration_elapses(game, fake_ticks):
+    fake_ticks["t"] = 0
+    ft = FloatingText(game, (50, 50), "+RATE", (240, 210, 70))
+
+    fake_ticks["t"] = FLOATING_TEXT_DURATION_MS
+    ft.update()
+
+    assert ft.active is False

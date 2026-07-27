@@ -12,16 +12,25 @@ intelligence that took the rest.
 
 ## Story
 
-A rogue AI — working name **the Convergence** **[OPEN: needs a real name]** —
-seized control of human infrastructure and, through it, human minds: soldiers
-across the map are still alive, still human, but dormant/suppressed, standing
-idle until something snaps them out of it. You are the **Squad Leader**, the
-last person with unbroken self-control (why you specifically are immune is
-**[OPEN]** — a implant malfunction, a shielded bunker, natural resistance,
-whatever fits) and your presence is what frees nearby soldiers when you get
-close enough.
+**[RESOLVED — name and immunity]**: the rogue AI is **ARGUS** (after Argus
+Panoptes, the many-eyed giant — fitting for a network built to watch over
+human infrastructure that ended up watching, and controlling, the humans
+in it instead). ARGUS seized control of human infrastructure and, through
+it, human minds: soldiers across the map are still alive, still human, but
+dormant/suppressed, standing idle until something snaps them out of it.
+You are the **Squad Leader** — the last person with unbroken self-control
+not because of any special resistance, but because you were in a
+shielded/off-grid forward position when ARGUS's mass suppression signal
+went out, so you were simply never exposed to it in the first place. Your
+own rank insignia/commlink still runs pre-ARGUS firmware, which doubles as
+why your presence specifically is what frees nearby soldiers when you get
+close enough: you're a live human broadcasting nothing on ARGUS's network,
+close enough to interrupt the suppression signal keeping them dormant. This
+also gives the RadioOperator-Class's fiction a reason to exist on ARGUS's
+side of things too, mechanically unrelated but narratively adjacent: radio
+is the same channel ARGUS uses.
 
-The Convergence's combat arm isn't "monsters" — it's autonomous bio-mimetic
+ARGUS's combat arm isn't "monsters" — it's autonomous bio-mimetic
 combat drones, modeled on insects/arthropods for movement efficiency (this is
 already exactly what the asset pack gives us: Scarab, Spider, Wasp, Hornet,
 Centipede). No reskin needed; the fiction already matches the art.
@@ -65,14 +74,35 @@ a time, while the drones try to stop you.
 ## Player: Squad Leader
 
 Implemented today: 8-directional movement (WASD/arrows) with friction,
-footprint trail while walking, recruits soldiers within 50px, rank
-(`rank_up()`, insignia sprite, no gameplay effect yet), 100 HP shown as an
+footprint trail while walking, recruits soldiers within 50px, rank (insignia
+sprite plus real stat bonuses now — see below), 100 HP shown as an
 always-visible overhead bar (`gameplay/ui.py`; green/orange/red by
 threshold, not a smooth gradient), a mouse-aimed sidearm (hold left click to
 fire at the nearest drone in range — see Combat), and death (HP hits 0 →
 death animation plays, game freezes on a GAME OVER screen).
 
-Not implemented: any effect from rank beyond the icon.
+**[RESOLVED — rank bonuses]**: `Player.rank_up()` is called by
+`Flag.update()` the instant a flag's progress reaches 100%, so rank tracks
+flags captured specifically, not soldiers recruited or drones killed. Each
+rank-up picks 2 distinct stats at random out of `{HP, move speed, fire rate,
+fire damage}` and buffs each by a fixed step (`util/constants.py`'s
+`RANK_UP_*_BONUS`) — dropping to 1 stat per rank-up once a map has 15
+(`MAX_RANK`) or more flags, since that many rank-ups will touch every stat
+naturally anyway without needing to double up (this map's 9 flags stay under
+that threshold, so every rank-up here still buffs 2). Each stat picked pops
+a colored floating label ("+HP", "+SPD", "+RATE", "+DMG") that rises above
+the Squad Leader and fades (`gameplay/effects.py`'s `FloatingText`). First-pass
+bonus amounts, not balanced.
+
+Wiring `rank_up()` up to something that actually fires repeatedly (it was
+dead code before) surfaced a latent crash in `get_rank_image()`: its sheet
+column formula wrapped with `% 6`, one past `squad-insignia.png`'s actual
+5-wide insignia column block, so every 6th rank raised a subsurface
+`ValueError` and killed the run outright (first reachable at rank 5, i.e.
+partway through a full 9-flag clear). Fixed to `% 5`, plus the looked-up
+rank is now clamped to `MAX_RANK` (not `self.rank` itself, which keeps
+counting) as a second guard against the row math ever overflowing the
+sheet too.
 
 **[RESOLVED]**: the Squad Leader fights directly, and so does the squad —
 neither is support-only. `Player.shoot()` fires at the nearest drone in
@@ -87,8 +117,9 @@ crawl, fire, hit, death, and throw frames already drawn. `Soldier` takes a
 `soldier_class` parameter (`gameplay/soldier.py`) that looks up movement
 speed and fire stats from `SOLDIER_CLASSES` (`util/constants.py`) and swaps
 in the matching sprite sheet — four classes share the same single-target
-hitscan attack and are wired up this way; `Map.spawn_objects()` round-robins
-through them per flag so squads have variety instead of every recruit being
+hitscan attack; a fifth, Grenadier-Class, shares everything except the
+attack itself (see below); `Map.spawn_objects()` round-robins through all
+five per flag so squads have variety instead of every recruit being
 identical.
 
 | Class | Status | Suggested role |
@@ -96,9 +127,9 @@ identical.
 | Assault-Class | **implemented** — default stats | Default recruit, balanced |
 | Sniper-Class | **implemented** — long `fire_range`, high `fire_damage`, slow `fire_cooldown_ms` | Long range, low fire rate, high damage |
 | MachineGunner-Class | **implemented** — short `fire_range`, low `fire_damage`, very fast `fire_cooldown_ms` | Short-medium range, high fire rate, low accuracy (approximated here as low per-shot damage) |
-| AntiTank-Class | **implemented** — high `fire_damage`, slow `speed` | High single-target damage, slow, good vs. tanky drones (Centipede?) |
-| Grenadier-Class | asset only — **not implemented**, needs a real AoE mechanic (splash damage against multiple targets) that `gameplay/combat.py`'s single-target `find_nearest`/`apply_damage` doesn't support yet | Arcing AoE, good vs. drone clusters |
-| RadioOperator-Class | asset only — **not implemented** | Non-combat support — **[OPEN]**: calls in reinforcements? Reveals map? Boosts nearby squad? |
+| AntiTank-Class | **implemented** — high `fire_damage`, slow `speed` | High single-target damage, slow, good vs. tanky drones (Centipede, hp 400 vs. 25-70 for everything else) |
+| Grenadier-Class | **implemented** — `splash_radius: 90` (every other class is 0); `Soldier.attack()` branches on that to throw a `Grenade` (`gameplay/effects.py`) at the nearest drone's position, then damages every drone within `splash_radius` of that point (`combat.find_all_in_range`), not just the one aimed at | Arcing AoE, good vs. drone clusters |
+| RadioOperator-Class | **implemented** — `support_cooldown_ms: 15000` (every other class is 0), never fights | Non-combat support: calls in a reinforcement soldier on that cooldown (`Soldier.call_reinforcement()`), picked at random from the other combat-capable classes and immediately added to the army. Picked over the other two suggested options: this game already has no fog of war (nothing for a "reveal map" ability to reveal), and a stat-boosting aura would need to track each buffed soldier's un-boosted base stats to undo the buff out of range |
 
 Per-class tuning is first-pass, not balanced (same caveat as drone/player
 combat numbers — see `util/constants.py`).
@@ -112,24 +143,39 @@ soldier now shows a green ring underneath it
 (`Soldier.draw_recruited_marker()`, `assets/images/ui/selection-circles.png`)
 so it's clear at a glance which soldiers are actually in the squad.
 
+**Movement fixes**: every class's `speed` is now higher than the player's —
+they used to all be slower, which meant a soldier that fell behind while
+you kept moving could never catch back up again, no matter how long you
+walked (the movement formula scales roughly with speed², so even a small
+speed deficit compounds badly over time). A soldier parked next to its own
+spawn-adjacent guardian drone will still look like it's "not following" —
+that's it correctly choosing to fight rather than follow, not a speed
+issue; it resumes following once nothing's left in range. Soldier-soldier
+separation (`avoid_entities()`) also used to push with constant strength
+regardless of how close two soldiers were, which wasn't enough to stop
+visible overlap up close — it now pushes harder the closer they are, and
+two exactly-overlapping soldiers (which used to just silently fail to
+separate) now push apart deterministically instead of staying stuck.
+
 ## Enemies: Drones
 
-Asset pack (`assets/images/robots/`). All four flying/walking types are
-spawned today via a shared `Drone` base class (`gameplay/robot.py`)
+Asset pack (`assets/images/robots/`). All five flying/walking/segmented
+types are spawned today via a shared `Drone` base class (`gameplay/robot.py`)
 parameterized by `DRONE_TYPES` (`util/constants.py`): idle → chase within
 `AGGRO_RADIUS` → melee or fire depending on range → destroyed (holds for
 `DESTROYED_DURATION_MS` before being removed, for types that have a
-destroyed frame). `Scarab`/`Spider`/`Hornet`/`Wasp` are thin subclasses
-pinning their `drone_type`; `DRONE_CLASSES` maps type name → class for
-spawn-time lookup. `Map.spawn_objects()` round-robins between them per flag.
+destroyed frame). `Scarab`/`Spider`/`Hornet`/`Wasp`/`Centipede` are thin
+subclasses pinning their `drone_type` (`Centipede` also adds its segment
+chain, see below); `DRONE_CLASSES` maps type name → class for spawn-time
+lookup. `Map.spawn_objects()` round-robins between them per flag.
 
 | Drone | Sheet size | Frames available | Suggested role |
 |---|---|---|---|
 | Scarab | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | **Implemented** — basic grunt, melee up close, ranged fallback at mid-range |
 | Spider | 80×80 (5×5 @ 16px) | idle, walk, fire, melee, destroyed | **Implemented** — fast flanker: higher `speed` and a much shorter `fire_range` than Scarab so it closes to melee instead of lingering at range |
-| Hornet | 192×48, **actually 24×24 frames, 8 cols × 2 rows** (not 16px — confirmed by rendering the sheet with a grid overlay and inspecting it, since the info .txt doesn't give a frame size) | row 0 = neutral hover, row 1 = firing hover — **no destroyed frame** | **Implemented** — `melee_range: 0` so the melee branch never triggers (distance is never `<= 0`), i.e. ranged-only by construction. Removed immediately on death (no destroyed pose to hold). Doesn't yet actively keep its distance when a target closes in — it still just chases/holds like the others; a real stand-off/kiting behavior is a further-out polish item, not implemented |
+| Hornet | 192×48, **actually 24×24 frames, 8 cols × 2 rows** (not 16px — confirmed by rendering the sheet with a grid overlay and inspecting it, since the info .txt doesn't give a frame size) | row 0 = neutral hover, row 1 = firing hover — **no destroyed frame** | **Implemented** — `melee_range: 0` so the melee branch never triggers (distance is never `<= 0`), i.e. ranged-only by construction. Removed immediately on death (no destroyed pose to hold). **[RESOLVED]**: now actually keeps its distance — `stand_off_range: 150` makes it back away while still firing once a target closes inside that, instead of holding ground like every other drone at fire range |
 | Wasp | 128×16, **confirmed 16×16 frames, 8 cols × 1 row** (single hover-loop animation, no separate firing pose) | one clip only — `idle`/`walking`/`fire`/`melee` in `DRONE_TYPES["Wasp"]["clip_rows"]` all point at row 0, so it looks identical in every status — **no destroyed frame** | **Implemented** — fast, fragile skirmisher; same no-melee/no-destroyed-hold treatment as Hornet |
-| Centipede | 128×288 | **[OPEN — still not wired up]**: gridding the sheet at 32×32 shows ~9 rows of distinct rolled-up/mandible poses, plus a trailing row of small 16×16 icons and a partial row of extra segment-looking pieces below the main grid — consistent with the original guess that this is a modular/segmented body (a head sprite plus repeatable body-segment pieces), not a simple animation grid `Drone` can slice with `add_directional_clips`. Wiring it up means designing how a segmented body renders/moves, not just adding a `DRONE_TYPES` entry — a bigger, separate task from Hornet/Wasp | Segmented/heavy — good siege-unit candidate once the rendering approach is designed |
+| Centipede | 128×288, **confirmed 16×16 frames, 8 cols × 18 rows** (not the originally-guessed 32×32 — confirmed by re-rendering at 16px and inspecting it) | rows 0-3: an armored head in 4 states (used for idle/walking/fire/melee); rows 8-16: plain round body-segment frames with no head armor, no destroyed frame | **Implemented** — heavy, slow siege unit. Head is a normal `Drone` (hp/combat/collision all inherited); the body is a chain of `CentipedeSegment` GameObjects (purely visual, no hp of their own) each holding `CENTIPEDE_SEGMENT_GAP` behind the one in front via a rigid follow constraint (`gameplay/robot.py`) — not a history-buffer/snake-path system, a simpler "each link snaps to hold distance from its leader" chain, confirmed to uncoil and trail correctly through a real chase in testing. No destroyed pose (removed immediately, segments included, same as Hornet/Wasp) |
 
 `Drone.get_target()` picks the nearest of the player or any in-army soldier
 within `AGGRO_RADIUS` (`gameplay/combat.find_nearest`) — so drones will
@@ -156,10 +202,21 @@ raycast. A drone/player/soldier "fires" at whichever valid target is closest
 within its range, regardless of facing — facing is cosmetic (aim animation)
 only, never gates whether a shot lands.
 
-**[OPEN]**: friendly fire between drones, or between soldiers — not
-implemented either way; `find_nearest` is currently only ever called with an
-opposing-faction candidate list, so there's no accidental friendly fire to
-worry about, but it's also not a deliberate design decision yet.
+**[RESOLVED — no friendly fire]**: never between drones, never between
+soldiers (or the player). Every `find_nearest`/`find_all_in_range` call
+site in the codebase passes an opposing-faction candidate list only
+(`Player`/`Soldier` attacks query `game.robots`; `Drone.get_target()`
+queries `[player] + in-army soldiers`; `Soldier`'s Grenadier-Class splash,
+the one AoE that could otherwise catch a bystander, also only ever queries
+`game.robots`) — confirmed by auditing every call site, not just an
+accident of how the four spots that mattered happened to be written.
+Staying this way is deliberate, not just "hasn't come up yet": the no-
+individual-unit-micromanagement pillar (Core pillars above) means the
+player can't designate who a soldier or drone is currently fighting, so a
+friendly-fire hit would always be an AI's own targeting choice landing on
+an ally — something the player has no way to have prevented and no
+useful response to beyond "that was unlucky," which cuts against the
+squad feeling like it's growing rather than eroding itself.
 
 ### HP bars
 
@@ -193,15 +250,36 @@ same approach as Hornet/Wasp.
   position on death, for all four drone types — this doubles as the
   "destroyed" visual for Hornet/Wasp, which don't have their own destroyed
   sheet frame (see Enemies above).
+- **Grenade** (`Grenade.png`, 8 frames @8px, a tumbling spin) lerps
+  Grenadier-Class → thrown-at point over `GRENADE_FLIGHT_MS`, then
+  **BigExplosion** (`big-explosion.png`, 11 frames @32px) plays at the
+  impact point — deliberately a bigger, different-looking burst from
+  Explosion so a splash hit doesn't read as just another drone dying.
+  Splash damage itself lands the instant the throw is thrown (still
+  hitscan-in-spirit, see Combat above); both effects are cosmetic on top.
+- **[RESOLVED]**: **LaserFlash** (`laser-flash.png`, 3 frames @16px, a
+  rounder growing energy-discharge burst) now replaces `MuzzleFlash` for
+  Hornet/Wasp specifically (`DRONE_TYPES["muzzle_effect"]`, `"laser"` vs.
+  `"gunpowder"`), since they're described as energy-based, not gunpowder.
+- **[RESOLVED]**: **Smoke** (`smoke.png`, 8 frames @8px, grows then
+  disperses into scattered particles) now lingers after every
+  Explosion/BigExplosion — `Drone.die()` (once per segment too, for
+  Centipede) and `Soldier.attack()`'s Grenadier-Class splash branch both
+  spawn it alongside their own fireball, at the same position and instant.
+  `SMOKE_FPS` is deliberately slower than `EXPLOSION_FPS`/
+  `BIG_EXPLOSION_FPS`, so the smoke's own clip simply outlasts the
+  fireball's — no separate delayed-spawn timer needed to make it "linger".
 
-Still unused: `laser-flash.png` (a rounder energy-weapon flash — could
-replace `muzzle-flashes.png` for Hornet/Wasp specifically, since they're
-described as energy-based, not gunpowder), `big-explosion.png`/
-`big-fragments.png`/`small-fragments.png`/`smoke.png`/`bullet-impacts.png`
-(debris/smoke lingering after an explosion, or ground scorch marks —
-polish, not required for the core loop), and `Grenade.png`/`RPG-round.png`
-(no AoE weapon exists yet — same blocker as Grenadier-Class, see Allies
-above).
+`bullet-impacts.png` (10 static decal variants, not an animation) is a
+deliberate deferral, not just unwired: nothing in this codebase raycasts an
+attack against `game.walls` — every hit resolves directly against
+`find_nearest`'s target (see Combat above), so there's no "the shot missed
+and hit a wall behind the target" event to hang a decal on without adding
+that raycast, a bigger change to the hitscan model itself than a decal
+effect. Still unused for the same "not required for the core loop, no
+mechanic needs it yet" reason as before: `big-fragments.png`/
+`small-fragments.png` (extra explosion debris), and `RPG-round.png` (no
+weapon uses it).
 
 ## Objectives / win-lose
 
@@ -216,7 +294,20 @@ drone standing directly on it (`Map.spawn_objects()`), so clearing that
 guardian is a natural prerequisite, not a bolted-on extra rule; this also
 means "defeat all drones" still mostly gets you there, it just isn't
 sufficient by itself anymore — you still have to walk up to and hold each
-flag. A capture is permanent (no decay once `captured`). `draw_pulse()`
+flag. A capture is permanent (no decay once `captured`).
+
+**[RESOLVED — density/difficulty pass]**: a flag doesn't just start with one
+guardian, it keeps making more. While uncaptured, `Flag._spawn_drone()`
+spawns another random drone near itself every `FLAG_SPAWN_COOLDOWN_MS`,
+capped at `FLAG_SPAWN_MAX_CONCURRENT` alive from that flag at once, and
+stops for good the instant it's captured. This was a direct response to
+winning feeling too easy: the single original guardian could die in a
+couple of seconds to a decent-sized squad, after which a flag was just an
+empty capture bar with nothing contesting it. Still bounded and
+finishable, not an idler/endless-survival spawner — there are exactly 9
+flags, each with its own hard cap and its own off-switch, so this adds
+sustained pressure at each objective instead of a global unbounded wave
+system. `draw_pulse()`
 stops pulsing a captured flag entirely, and while progressing draws an
 elliptical fill (`gameplay/ui.draw_radial_progress`) growing clockwise
 behind the flag itself, centered on it — layered furthest back, so the
@@ -225,6 +316,17 @@ ellipse's size and aspect ratio match the flag's own pulse animation at
 its largest frame, not an arbitrary circle — measured directly off
 `objective-pulse.png` rather than eyeballed. The fill is semi-transparent
 rather than solid, so it doesn't fully hide the tile underneath.
+
+**[RESOLVED — capture radius vs. the visual fill]**: `FLAG_CAPTURE_RADIUS`
+used to be an independently-tuned 100, bigger than the visual ellipse
+above it (90×61), so you could stand visibly outside the fill and still be
+capturing — it now reuses `FLAG_CAPTURE_ELLIPSE_RY` (61) directly, the
+smaller of the ellipse's two axes, so the gameplay range can never reach
+further than the ring you can see (a plain circular check still — the
+smaller axis keeps it inside the ellipse rather than trying to match its
+shape exactly). `FLAG_CAPTURE_RATE` also went from 20%/s to 35%/s (~2.9s
+to capture uncontested instead of 5s) — felt too slow, especially now that
+9 flags means capturing several per run.
 
 `Game._check_end_conditions()` (`src/app/game.py`) declares VICTORY once
 `self.flags and all(flag.captured for flag in self.flags)`. Player death is
@@ -236,19 +338,30 @@ loop and draw a translucent overlay with the end message
 ## World
 
 Single Tiled map today (`assets/images/tileset/tiledmap.tmx`), fixed camera
-follow, no fog of war, no minimap. `assets/images/obstacles_and_objects/`
-is unused beyond the invisible collision walls already spawned from "wall"
-objects in the map — there may be room to make some of those
-visible/decorative instead of invisible-only.
+follow, no fog of war, no minimap; walls come from Tiled tile collision
+shapes now, not object-layer rectangles (see Obstacle in CLAUDE.md).
+
+**[RESOLVED — visible obstacles]**: `RockObstacle` (`gameplay/map.py`)
+scatters real, collidable boulders (from
+`assets/images/obstacles_and_objects/obstacles-and-objects.png`) across open
+ground at load time, so some of the map's obstacles are now things you can
+actually see coming instead of only invisible tile collision. Positions are
+chosen procedurally (fixed seed, so still reproducible) rather than placed
+in Tiled, rejecting anywhere that would overlap a wall, sit within
+`FLAG_CONTEST_RADIUS` of a flag, or land on a fenced compound's floor. Most
+of that sheet is still unused (streetlamp, barrels, crates/debris,
+glass/window fragments, and a whole car/wreck section) — good candidates
+for further decoration passes, though the cars specifically need their real
+frame size confirmed first (they bleed past a naive 16px grid slice).
 
 ## Content inventory (what's available vs. wired up)
 
 | Category | Available | Wired up |
 |---|---|---|
-| Soldier classes | 6 | 4 (Assault, Sniper, MachineGunner, AntiTank — all combat-capable) |
-| Drone types | 5 | 4 (Scarab, Spider, Hornet, Wasp — all combat-capable) |
-| Effects sheets | 10 | 4 (muzzle-flashes, hit-sparks, hit-spatters, small-explosion) |
-| Projectile sheets | 3 | 1 (bullets+plasma, tracer-only — see Effects & projectiles above) |
+| Soldier classes | 6 | 6 (Assault, Sniper, MachineGunner, AntiTank, Grenadier, RadioOperator) |
+| Drone types | 5 | 5 (Scarab, Spider, Hornet, Wasp, Centipede — all combat-capable) |
+| Effects sheets | 10 | 5 (muzzle-flashes, hit-sparks, hit-spatters, small-explosion, big-explosion) |
+| Projectile sheets | 3 | 2 (bullets+plasma tracer-only, Grenade — see Effects & projectiles above) |
 | Maps | 1 | 1 |
 
 ## Suggested build order
@@ -263,24 +376,74 @@ visible/decorative instead of invisible-only.
 4. ~~Win/lose condition~~ **done** ("all drones dead" / player HP 0, see
    Objectives above).
 5. ~~Wire the other soldier classes onto the same follow/avoid/recruit/engage
-   code with per-class combat stats~~ **done for Assault/Sniper/
-   MachineGunner/AntiTank** (`SOLDIER_CLASSES` in `util/constants.py`).
-   Grenadier and RadioOperator still need new mechanics (AoE, a support
-   ability) the current single-target hitscan model doesn't cover.
+   code with per-class combat stats~~ **done for all six** (`SOLDIER_CLASSES`
+   in `util/constants.py`) — RadioOperator reuses the same `engage()` entry
+   point, just branching to a support ability instead of combat.
 6. ~~Give Spider the same AI as Scarab, then Hornet/Wasp once their sheet
    layouts are confirmed~~ **done** — `Drone` now takes a per-type
    `sprite_size`/`clip_rows`/`destroyed_row` config instead of assuming
    Scarab's layout, so Hornet (24×24, 2 rows) and Wasp (16×16, 1 row) reuse
-   the same AI/combat code with no branching. Only Centipede remains
-   unwired (see the **[OPEN]** row in Enemies above — it needs a modular/
-   segmented-body rendering approach, not just a stat block).
+   the same AI/combat code with no branching.
 7. ~~Effects & projectiles~~ **started** — muzzle flash, hit spark/spatter,
    drone-death explosion, and a visual-only bullet tracer are all wired up
-   (see Effects & projectiles above). Still open within this bucket: swap
-   in `laser-flash.png` for Hornet/Wasp's muzzle flash, lingering
-   smoke/scorch decals, and impact marks on walls (`bullet-impacts.png`).
+   (see Effects & projectiles above). `bullet-impacts.png` specifically is
+   a deliberate deferral, not just unwired (see Effects & projectiles
+   above for why) — nothing else is still open in this bucket.
 8. ~~Flag-capture as a richer win condition~~ **done** — replaces "defeat
    all drones" outright (see Objectives / win-lose above).
-9. **Next up:** the rest of polish (visible obstacles, RadioOperator
-   support ability, Grenadier AoE + `Grenade.png`/`RPG-round.png`, rank
-   bonuses, Centipede's segmented body).
+9. ~~Rank bonuses~~ **done** — see Player: Squad Leader above.
+10. ~~Grenadier AoE~~ **done** — `combat.find_all_in_range` + `Grenade`/
+    `BigExplosion` (see Allies and Effects & projectiles above).
+11. ~~Centipede's segmented body~~ **done** — see Enemies above.
+12. ~~Visible obstacles~~ **done** — `RockObstacle`, see World above.
+13. ~~RadioOperator support ability~~ **done** — see Allies above.
+14. ~~Swap in laser-flash.png for Hornet/Wasp~~ **done** — see Effects &
+    projectiles above.
+15. ~~Lingering smoke~~ **done** — see Effects & projectiles above.
+    `bullet-impacts.png` (wall impact marks) is a deliberate deferral
+    instead — needs a raycast against `game.walls` this codebase doesn't
+    have, a bigger change to the hitscan model than a decal effect.
+16. ~~Hornet's stand-off/kiting behavior~~ **done** — see Enemies above.
+17. ~~Friendly-fire and story **[OPEN]**s~~ **done** — no friendly fire, by
+    design (see Combat above, and its regression tests in `test_soldier.py`/
+    `test_robot.py`); ARGUS named and the Squad Leader's immunity given a
+    reason (see Story above).
+18. ~~First drone-hp balance pass~~ **done** — every `DRONE_TYPES["hp"]`
+    raised (Scarab 40→70, Spider 30→55, Hornet 45→70, Wasp 18→25, Centipede
+    80→400): winning was too easy, and Centipede specifically died before
+    its segment chain (which only stretches out while still approaching,
+    then freezes once in combat) ever had time to visibly move. Simulated
+    a squad converging on one drone to sanity-check (not just guessed):
+    Centipede now takes ~3.3s against a 4-soldier+player pile-on and ~10s
+    against the player alone, instead of dying in ~1-2s either way. Still
+    first-pass -- player/soldier stats and rank-up bonus scaling weren't
+    touched this round, so it's an open question whether they need
+    adjusting too once this lands in an actual playthrough.
+19. ~~Second balance/mechanics pass~~ **done** — root cause behind
+    "still feels easy" turned out to be architectural, not just numbers:
+    combat happens in place with no positioning decisions, the squad fights
+    autonomously enough that the player doesn't even see it happening, and
+    there just weren't enough enemies. Three changes, deliberately none of
+    which reverse the no-individual-micromanagement pillar:
+    - ~~Flag spawners~~ **done** — see Objectives / win-lose above.
+    - ~~Squad attacks gated on the player being stationary~~ **done** — see
+      the Soldier entity entry in CLAUDE.md (`SQUAD_ATTACK_MAX_PLAYER_SPEED`).
+      A soldier still finds/faces/holds its target the instant one's in
+      range regardless of player movement, but only actually fires while the
+      player's own velocity is under the threshold — makes "stop to let your
+      squad finish this fight" vs. "keep moving and leave them mid-aim" a
+      real moment-to-moment decision instead of something that just happens
+      in the background with zero input from the player.
+    - ~~Squad stance toggle~~ **done** — Tab flips `Player.squad_stance`
+      between `"engage"` (default, unchanged spread-and-fight behavior) and
+      `"guard"` (tight escort formation, see CLAUDE.md's Player/Soldier
+      entries for the exact numbers). A `FloatingText` popup is the only
+      feedback (no HUD indicator yet) — acceptable for a first pass, worth
+      revisiting if playtesting shows the current stance isn't obvious
+      enough at a glance mid-fight.
+    A fourth idea (right-click to send the whole army to focus-fire one
+    point) was deliberately deferred rather than folded in: it's a pure
+    damage-concentration multiplier with no built-in cost, which risks
+    undoing the drone-hp pass above outright (Centipede's 400 hp
+    specifically). Worth revisiting once this pass is played, with some
+    cost attached if it comes back (a cooldown, a range limit, etc.).
