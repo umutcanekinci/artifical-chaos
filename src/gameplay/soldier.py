@@ -14,7 +14,9 @@ from pygame_core.image import scale
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
-from gameplay.combat import apply_damage, find_all_in_range, find_nearest, has_line_of_sight, ready_to_attack
+from gameplay.combat import (
+    apply_damage, find_all_in_range, find_nearest, has_line_of_sight, muzzle_position, ready_to_attack,
+)
 from gameplay.effects import BigExplosion, FloatingText, Grenade, HitSpark, MuzzleFlash, Smoke, Tracer
 from gameplay.ui import draw_health_bar
 
@@ -140,7 +142,8 @@ class Soldier(GameObject):
             # Still hitscan in spirit (see gameplay/combat.py): the damage
             # resolves instantly at throw time, the Grenade/BigExplosion are
             # purely cosmetic on top.
-            Grenade(self.game, self.position, target.position)
+            throw_point = muzzle_position(self.position, self.facing, MUZZLE_OFFSET_X, MUZZLE_OFFSET_Y)
+            Grenade(self.game, throw_point, target.position)
             for hit in find_all_in_range(target.position, self.game.robots, self.splash_radius):
                 HitSpark(self.game, hit.position)
                 if apply_damage(hit, damage):
@@ -149,8 +152,9 @@ class Soldier(GameObject):
             Smoke(self.game, target.position)
             return
 
-        MuzzleFlash(self.game, self.position, self.facing)
-        Tracer(self.game, self.position, target.position)
+        muzzle = muzzle_position(self.position, self.facing, MUZZLE_OFFSET_X, MUZZLE_OFFSET_Y)
+        MuzzleFlash(self.game, muzzle, self.facing)
+        Tracer(self.game, muzzle, target.position)
         HitSpark(self.game, target.position)
         if apply_damage(target, damage):
             target.die()

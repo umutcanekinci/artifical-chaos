@@ -3,7 +3,9 @@ from types import SimpleNamespace
 import pygame
 from pygame.math import Vector2
 
-from gameplay.combat import apply_damage, find_all_in_range, find_nearest, has_line_of_sight, raycast, ready_to_attack
+from gameplay.combat import (
+    apply_damage, find_all_in_range, find_nearest, has_line_of_sight, muzzle_position, raycast, ready_to_attack,
+)
 
 
 def make_entity(x, y, active=True):
@@ -197,3 +199,28 @@ def test_has_line_of_sight_false_when_a_wall_sits_exactly_at_the_target():
     # count as blocking -- clipline() includes both endpoints.
     wall = make_wall(pygame.Rect(90, -10, 20, 20))
     assert has_line_of_sight(Vector2(0, 0), Vector2(100, 0), walls=[wall]) is False
+
+
+def test_muzzle_position_offsets_right_when_facing_right():
+    result = muzzle_position(Vector2(0, 0), facing=0, offset_x=12, offset_y=-6)
+
+    assert result == Vector2(12, -6)
+
+
+def test_muzzle_position_mirrors_offset_x_when_facing_left():
+    result = muzzle_position(Vector2(0, 0), facing=1, offset_x=12, offset_y=-6)
+
+    assert result == Vector2(-12, -6)
+
+
+def test_muzzle_position_offset_y_does_not_mirror_with_facing():
+    right = muzzle_position(Vector2(0, 0), facing=0, offset_x=12, offset_y=-6)
+    left = muzzle_position(Vector2(0, 0), facing=1, offset_x=12, offset_y=-6)
+
+    assert right.y == left.y == -6
+
+
+def test_muzzle_position_is_relative_to_the_given_origin():
+    result = muzzle_position(Vector2(5, 5), facing=0, offset_x=12, offset_y=-6)
+
+    assert result == Vector2(17, -1)

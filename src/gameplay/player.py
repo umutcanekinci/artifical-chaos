@@ -14,7 +14,7 @@ from pygame_core.asset_path import ImagePath
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips
-from gameplay.combat import apply_damage, find_nearest, has_line_of_sight, raycast, ready_to_attack
+from gameplay.combat import apply_damage, find_nearest, has_line_of_sight, muzzle_position, raycast, ready_to_attack
 from gameplay.effects import BulletImpact, FloatingText, HitSpark, MuzzleFlash, Tracer
 from gameplay.ui import draw_health_bar
 
@@ -205,8 +205,9 @@ class Player(GameObject):
         if not ready_to_attack(now, self.last_attack_time, cooldown_ms):
             return
         self.last_attack_time = now
-        MuzzleFlash(self.game, self.position, self.facing)
-        Tracer(self.game, self.position, target.position)
+        muzzle = muzzle_position(self.position, self.facing, MUZZLE_OFFSET_X, MUZZLE_OFFSET_Y)
+        MuzzleFlash(self.game, muzzle, self.facing)
+        Tracer(self.game, muzzle, target.position)
         HitSpark(self.game, target.position)
         if apply_damage(target, damage):
             target.die()
@@ -232,8 +233,9 @@ class Player(GameObject):
         hit_point = raycast(self.position, direction, PLAYER_FIRE_RANGE, self.game.walls)
         end_point = hit_point if hit_point is not None else self.position + direction.normalize() * PLAYER_FIRE_RANGE
 
-        MuzzleFlash(self.game, self.position, self.facing)
-        Tracer(self.game, self.position, end_point)
+        muzzle = muzzle_position(self.position, self.facing, MUZZLE_OFFSET_X, MUZZLE_OFFSET_Y)
+        MuzzleFlash(self.game, muzzle, self.facing)
+        Tracer(self.game, muzzle, end_point)
         if hit_point is not None:
             BulletImpact(self.game, hit_point)
 

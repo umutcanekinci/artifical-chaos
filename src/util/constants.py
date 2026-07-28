@@ -1,5 +1,6 @@
 from pygame import Rect
 
+TITLE = "Artificial Chaos"
 FPS = 60
 SIZE = (1920, 1080)  # fixed render resolution; Application upscales it (SCALED) to the display
 SPRITE_SIZE = 16
@@ -11,6 +12,26 @@ AVOID_RADIUS = 50
 FRICTION = 0.1
 RANK_SIZE = 24
 MAX_RANK = 15
+
+# How far combat.muzzle_position() nudges a MuzzleFlash/LaserFlash/Tracer/
+# Grenade spawn point from an attacker's body center, so those effects read
+# as coming from a held weapon, not the character's own torso -- used by
+# every attacker's attack() (Player, Soldier, Drone). Fixed offsets, not
+# scaled by aim direction: every entity has only two poses (right-facing
+# and its horizontal mirror, see add_directional_clips), so the weapon's
+# position on the sprite doesn't swing around to track the exact target
+# angle -- it only mirrors left/right with `facing`. Baseline is derived
+# from pixel-inspecting two fire-frame sprites' actual gun tips (16x16
+# frame, center (8,8)) and scaling by SCALE_FACTOR: SquadLeader.png's is at
+# (12,4) -- (+4,-4) sprite-px, i.e. (+12,-12) world -- and Assault-Class.png's
+# is at (12,8) -- (+4,0) sprite-px, i.e. (+12,0) world; Y is split the
+# difference between the two (never positive/downward in either
+# reference). X is bumped past that measured baseline (12 -> 18) --
+# in-game it still read as too close to the body even at the pixel-exact
+# value, since the flash effect's own sprite has visual padding the raw
+# gun-tip pixel doesn't account for.
+MUZZLE_OFFSET_X = 18
+MUZZLE_OFFSET_Y = -6
 
 # Startup splash (pygame_core.SplashScreen): fade-in then hold, per image --
 # same values as chokepoint/highrise/hunted/standoff, which all show the

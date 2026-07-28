@@ -381,6 +381,23 @@ def test_shoot_damages_the_nearest_drone_once_off_cooldown(game, monkeypatch, fa
     assert HitSpark in kinds
 
 
+def test_shoot_spawns_the_muzzle_flash_offset_toward_the_target_not_on_the_player(game, monkeypatch, fake_ticks):
+    # Regression test: MuzzleFlash/Tracer used to spawn at self.position
+    # (the player's own body center) -- reads as firing from your torso
+    # instead of a held weapon.
+    monkeypatch.setattr(pygame.mouse, "get_pressed", lambda: (True, False, False))
+    p = make_shooting_player(game)
+    drone = SimpleNamespace(position=Vector2(50, 0), active=True, hp=40)
+    game.robots.append(drone)
+
+    fake_ticks["t"] = PLAYER_FIRE_COOLDOWN_MS
+    p.shoot()
+
+    from gameplay.effects import MuzzleFlash
+    flash = next(o for o in game.all_sprites if isinstance(o, MuzzleFlash))
+    assert flash.rect.centerx > p.position.x  # nudged toward the drone (to the right), not at the player
+
+
 def test_shoot_does_not_fire_through_a_wall_and_fires_at_nothing_instead(game, monkeypatch, fake_ticks):
     monkeypatch.setattr(pygame.mouse, "get_pressed", lambda: (True, False, False))
     p = make_shooting_player(game)

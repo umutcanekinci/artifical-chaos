@@ -10,7 +10,7 @@ from pygame_core.asset_path import ImagePath
 from util.constants import *
 from gameplay.collision import collide
 from gameplay.animation import add_directional_clips, add_oneshot_clip
-from gameplay.combat import apply_damage, find_nearest, has_line_of_sight, ready_to_attack
+from gameplay.combat import apply_damage, find_nearest, has_line_of_sight, muzzle_position, ready_to_attack
 from gameplay.effects import Explosion, HitSpatter, LaserFlash, MuzzleFlash, Smoke, Tracer
 from gameplay.ui import draw_health_bar
 
@@ -116,11 +116,12 @@ class Drone(GameObject):
             return
         self.last_attack_time = now
         if self.status == "fire":  # melee has no muzzle/tracer -- no gun to flash
+            muzzle = muzzle_position(self.position, self.facing, MUZZLE_OFFSET_X, MUZZLE_OFFSET_Y)
             if self.muzzle_effect == "laser":
-                LaserFlash(self.game, self.position, self.facing)
+                LaserFlash(self.game, muzzle, self.facing)
             else:
-                MuzzleFlash(self.game, self.position, self.facing)
-            Tracer(self.game, self.position, target.position)
+                MuzzleFlash(self.game, muzzle, self.facing)
+            Tracer(self.game, muzzle, target.position)
         HitSpatter(self.game, target.position)
         if apply_damage(target, damage):
             target.die()

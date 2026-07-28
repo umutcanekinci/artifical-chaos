@@ -515,3 +515,40 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     that scenario, since nothing was ever in aggro/fire range of anything).
     Worth a look eventually for long play sessions, but a separate issue
     from this one.
+23. ~~Muzzle point fix~~ **done** — every `attack()` (`Player`, `Soldier`,
+    `Drone`) used to spawn `MuzzleFlash`/`LaserFlash`/`Tracer`/`Grenade` at
+    `self.position`, i.e. the attacker's own body center, which read as
+    firing from your torso rather than a held weapon. Took three passes to
+    get right: first, one flat radial distance (16 units) toward the
+    target — still read as too close to the body, especially firing
+    straight up/down. Second, two independent scales (`offset_x`/`offset_y`
+    at 20/32) blended by the normalized direction toward the target, on
+    the reasoning that these are top-down sprites with only left/right
+    flips so a held weapon should sit lower on the sprite than off to
+    either side — this shipped, tested, and was visually verified once,
+    but was conceptually wrong: it made the muzzle flash visibly swing
+    around the body as the aim angle changed, when the underlying sprite
+    only has two fixed poses (`facing` 0/1) and never actually re-poses to
+    track a continuous angle. Landed on `combat.muzzle_position(origin,
+    facing, offset_x, offset_y)`: a fixed offset that only mirrors
+    `offset_x` with `facing` and never varies with the target's exact
+    position. `MUZZLE_OFFSET_X`/`_Y` (18/-6) start from pixel-inspecting
+    `SquadLeader.png`'s and `Assault-Class.png`'s actual fire-frame gun
+    tips directly rather than a guess — both sit right of center in the
+    right-facing pose (measured baseline 12), one also noticeably above
+    it, never below (so the "sitting lower on the sprite" rationale
+    behind the second pass was itself backwards) — X was then bumped up
+    from that measured 12 to 18 after seeing it rendered in-game still
+    read as too close to the body, since the flash sprite's own visual
+    padding eats into the raw gun-tip pixel distance; Y stayed at the
+    measured value. Hit resolution is completely unaffected —
+    `HitSpark`/`HitSpatter` still land at the target's own position; only
+    where the shot/throw visually originates moved.
+    Decided against making flying enemies (Hornet/Wasp) ignore walls when
+    asked about it separately: it would undo the whole point of item 22's
+    line-of-sight work for exactly the enemy type (Hornet) that already
+    kites at range and would otherwise have zero counterplay via cover,
+    and there's no visual/mechanical language yet (no shadow, no height
+    indicator) for "this enemy is elevated" — a wall stopping a Scarab but
+    not a Hornet would likely just read as a bug. Dropped, not deferred;
+    revisit only if a real elevation/flight system gets designed later.

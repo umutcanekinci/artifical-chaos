@@ -99,6 +99,34 @@ def has_line_of_sight(origin: Vector2, target_pos: Vector2, walls) -> bool:
     return raycast(origin, target_pos - origin, distance, walls) is None
 
 
+def muzzle_position(origin: Vector2, facing: int, offset_x: float, offset_y: float) -> Vector2:
+    """Nudges a MuzzleFlash/LaserFlash/Tracer/Grenade spawn point from an
+    attacker's body center (`origin`, i.e. `self.position`) out toward
+    where the held weapon actually sits on the sprite, so those effects
+    read as coming from a gun rather than the character's own torso --
+    every attacker's `attack()` used to spawn them at `self.position`
+    directly.
+
+    Every entity in this codebase has exactly two poses -- `facing` 0
+    (right) and 1 (its horizontal mirror) -- with no up/down/diagonal aim
+    variants (see `gameplay/animation.py`'s add_directional_clips). The
+    weapon's position on the sprite is therefore fixed in sprite-space,
+    not something that swings around to track the exact angle to a
+    target: pixel-inspecting SquadLeader.png's and Assault-Class.png's
+    fire frames directly (their gun tips sit slightly right-and-up, and
+    right-and-level, of frame center respectively, in their right-facing
+    pose) is what `MUZZLE_OFFSET_X`/`_Y` are actually derived from -- an
+    earlier version of this function scaled offset_x/offset_y by the
+    normalized direction toward the target instead, which made the flash
+    visibly orbit the body as the aim angle changed; that doesn't match a
+    sprite that only ever has two fixed poses.
+
+    `offset_x` mirrors with `facing` (negated when facing left);
+    `offset_y` doesn't mirror (no up/down pose to flip between)."""
+    sign = -1 if facing == 1 else 1
+    return Vector2(origin) + Vector2(offset_x * sign, offset_y)
+
+
 def ready_to_attack(now: int, last_attack_time: int, cooldown_ms: int) -> bool:
     return now - last_attack_time >= cooldown_ms
 

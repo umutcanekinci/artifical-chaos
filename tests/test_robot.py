@@ -125,6 +125,19 @@ def test_fires_when_in_fire_range_but_outside_melee_range(game, fake_ticks):
     assert HitSpatter in kinds
 
 
+def test_fire_spawns_the_muzzle_flash_offset_toward_the_target_not_on_the_drone(game, fake_ticks):
+    game.player.position = Vector2(SCARAB["fire_range"] - 10, 0)
+    game.player.hp = 100
+    s = make_scarab(game)
+
+    fake_ticks["t"] = SCARAB["fire_cooldown_ms"]
+    s.engage()
+
+    from gameplay.effects import MuzzleFlash
+    flash = next(o for o in game.all_sprites if isinstance(o, MuzzleFlash))
+    assert flash.rect.centerx > s.position.x
+
+
 def test_does_not_fire_through_a_wall_and_approaches_instead(game, fake_ticks):
     game.player.position = Vector2(SCARAB["fire_range"] - 10, 0)
     game.player.hp = 100
