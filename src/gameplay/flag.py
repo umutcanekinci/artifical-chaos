@@ -6,7 +6,8 @@ from typing import override
 
 from pygame_core.ecs.game_object import GameObject
 from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
-from pygame_core.ecs.components.animator import Animator, AnimationClip
+from pygame_core.ecs.components.animator import Animator
+from pygame_core.ecs.components.animation_clip import AnimationClip
 from pygame_core.sprite_sheet import SpriteSheet
 from pygame_core.asset_path import ImagePath
 

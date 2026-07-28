@@ -2,7 +2,8 @@ import pygame
 
 from pygame_core.sprite_sheet import SpriteSheet
 from pygame_core.image import scale_by
-from pygame_core.ecs.components.animator import Animator, AnimationClip
+from pygame_core.ecs.components.animator import Animator
+from pygame_core.ecs.components.animation_clip import AnimationClip
 from util.constants import SPRITE_SIZE, SCALE_FACTOR
 
 
