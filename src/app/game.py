@@ -81,14 +81,6 @@ class Game(Application):
         self.game_over = False
         self.end_message = ""
 
-    def run(self):
-        # SplashScreen runs its own loop with direct pygame.display.update()
-        # calls, bypassing Application._present()'s scale step -- draw it
-        # straight onto the real display surface rather than the offscreen
-        # logical canvas, or it would never actually reach the screen.
-        self.splash.run(self.display_surface, self.clock, self._fps)
-        super().run()
-
     @override
     def handle_event(self, event) -> None:
         if self.game_over:
