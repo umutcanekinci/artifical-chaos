@@ -532,15 +532,16 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     track a continuous angle. Landed on `combat.muzzle_position(origin,
     facing, offset_x, offset_y)`: a fixed offset that only mirrors
     `offset_x` with `facing` and never varies with the target's exact
-    position. `MUZZLE_OFFSET_X`/`_Y` (18/-6) start from pixel-inspecting
+    position. `MUZZLE_OFFSET_X`/`_Y` (24/-6) start from pixel-inspecting
     `SquadLeader.png`'s and `Assault-Class.png`'s actual fire-frame gun
     tips directly rather than a guess — both sit right of center in the
     right-facing pose (measured baseline 12), one also noticeably above
     it, never below (so the "sitting lower on the sprite" rationale
     behind the second pass was itself backwards) — X was then bumped up
-    from that measured 12 to 18 after seeing it rendered in-game still
-    read as too close to the body, since the flash sprite's own visual
-    padding eats into the raw gun-tip pixel distance; Y stayed at the
+    from that measured 12 in two rounds (12 → 18 → 24) after seeing it
+    rendered in-game still read as too close to the body each time, since
+    the flash sprite's own visual padding eats into the raw gun-tip pixel
+    distance; Y stayed at the
     measured value. Hit resolution is completely unaffected —
     `HitSpark`/`HitSpatter` still land at the target's own position; only
     where the shot/throw visually originates moved.
@@ -552,3 +553,26 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     indicator) for "this enemy is elevated" — a wall stopping a Scarab but
     not a Hornet would likely just read as a bug. Dropped, not deferred;
     revisit only if a real elevation/flight system gets designed later.
+
+24. ~~Clamp delta_time against restart()'s own rebuild cost~~ **done** —
+    reported as "fast-clicking or pressing a key right after dying
+    sometimes teleports the player somewhere wrong / makes it disappear,
+    but waiting a bit first before restarting never does." Root cause
+    confirmed by measurement, not guesswork: `restart()` (rebuilding the
+    whole map from the tmx) takes about **1 real second**, and
+    `pygame.time.Clock.get_time()` measures wall-clock time since the
+    *previous* `tick()` call — so that entire second doesn't show up in
+    the frame that ran `restart()`, it lands inside the *next* frame's
+    `delta_time` instead, as a single ~1-second spike. `Player`/`Soldier`/
+    `Drone.move()` is quadratic in `delta_time`, so that spike landing
+    while a movement key is still held (very plausible right after
+    frantically mashing a restart click) moved the player thousands of
+    world units in one frame — enough to tunnel straight through a wall
+    (collision here is a per-frame AABB overlap check, not continuous) or
+    land outside the map/camera. Waiting before clicking "fixed" it only
+    because letting go of movement keys first zeroes acceleration, so the
+    same giant spike multiplies out to nothing. Fixed at the source:
+    `Game.update()` now clamps to `MAX_DELTA_TIME` (`util/constants.py`,
+    1/20s) instead of trusting `get_time()` directly — covers this
+    specific stall and any other (alt-tab, window drag, a GC pause)
+    without needing to know about them individually.

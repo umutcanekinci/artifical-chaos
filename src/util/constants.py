@@ -13,6 +13,21 @@ FRICTION = 0.1
 RANK_SIZE = 24
 MAX_RANK = 15
 
+# Upper bound on Game.delta_time, in seconds. pygame.time.Clock.get_time()
+# measures real wall-clock time between successive tick() calls -- if
+# anything makes one frame take unusually long (a slow synchronous restart()
+# rebuilding the whole map from the tmx, alt-tabbing, dragging the window,
+# a GC pause), the *next* frame's delta_time absorbs that entire stall as
+# one giant spike. Player/Soldier/Drone.move() is quadratic in delta_time
+# (velocity = acceleration * dt * ms, then position += velocity * dt), so an
+# unclamped multi-second spike combined with a held movement key can move an
+# entity thousands of units in a single frame -- far enough to tunnel clean
+# through a wall (no continuous collision detection) or land outside the
+# map/camera entirely. 1/20s caps the worst case at a modest, still-visible
+# single-frame nudge instead of a teleport, at the cost of physics visibly
+# slowing down (not skipping) during a real stall.
+MAX_DELTA_TIME = 1 / 20
+
 # How far combat.muzzle_position() nudges a MuzzleFlash/LaserFlash/Tracer/
 # Grenade spawn point from an attacker's body center, so those effects read
 # as coming from a held weapon, not the character's own torso -- used by
@@ -26,11 +41,11 @@ MAX_RANK = 15
 # (12,4) -- (+4,-4) sprite-px, i.e. (+12,-12) world -- and Assault-Class.png's
 # is at (12,8) -- (+4,0) sprite-px, i.e. (+12,0) world; Y is split the
 # difference between the two (never positive/downward in either
-# reference). X is bumped past that measured baseline (12 -> 18) --
-# in-game it still read as too close to the body even at the pixel-exact
+# reference). X is bumped well past that measured baseline (12 -> 18 -> 24)
+# -- in-game it still read as too close to the body even at the pixel-exact
 # value, since the flash effect's own sprite has visual padding the raw
 # gun-tip pixel doesn't account for.
-MUZZLE_OFFSET_X = 18
+MUZZLE_OFFSET_X = 24
 MUZZLE_OFFSET_Y = -6
 
 # Startup splash (pygame_core.SplashScreen): fade-in then hold, per image --

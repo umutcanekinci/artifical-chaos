@@ -24,7 +24,7 @@ _RESTART_EXCLUDED_KEYS = frozenset({pygame.K_ESCAPE, pygame.K_F1, pygame.K_F11})
 class Game(Application):
 
     def __init__(self):
-        super().__init__(SIZE, "Artificial Chaos", FPS)
+        super().__init__(SIZE, TITLE, FPS)
 
         self.mouse.set_cursor_visible(False)
         self.cursor = load_image(ImagePath("mouse-pointer", "ui"))
@@ -53,7 +53,15 @@ class Game(Application):
         once from __init__ for the first run, and again by handle_event()
         on any key/click on the GAME OVER / VICTORY screen -- app-level
         one-time setup (cursor, splash, end-screen fonts) lives in
-        __init__ instead, untouched by a restart."""
+        __init__ instead, untouched by a restart.
+
+        Rebuilding the map (tmx parse + tile-layer pre-render + respawning
+        everything) takes real wall-clock time -- measured around 1 second
+        in this codebase's own map. Since restart() runs synchronously
+        inside event handling, that entire cost lands inside the *next*
+        frame's pygame.time.Clock.get_time() reading; see MAX_DELTA_TIME
+        (util/constants.py) for why that doesn't turn into a one-frame
+        teleport for whatever's moving at the time."""
         self.all_sprites = GameObjectList()
         self.walls = GameObjectList()
         self.flags = GameObjectList()
@@ -98,7 +106,11 @@ class Game(Application):
         if self.game_over:
             return
 
-        self.delta_time = self.clock.get_time() / 1000
+        # Clamped (see MAX_DELTA_TIME) -- get_time() is real wall-clock time
+        # since the last tick(), so it silently absorbs any stall that
+        # happened in between, including restart()'s own map-rebuild cost
+        # (see restart()'s docstring) landing inside the very next frame.
+        self.delta_time = min(self.clock.get_time() / 1000, MAX_DELTA_TIME)
         self.camera.follow(self.player.rect.center)
         self.all_sprites.update()
         self.tutorial.update()
