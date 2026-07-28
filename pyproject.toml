@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "pygame-ce",
     "pytmx",
+    "pygame-core",
 ]
 
 [dependency-groups]
