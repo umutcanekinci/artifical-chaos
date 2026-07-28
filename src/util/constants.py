@@ -48,7 +48,7 @@ MAX_DELTA_TIME = 1 / 20
 MUZZLE_OFFSET_X = 24
 MUZZLE_OFFSET_Y = -6
 
-# Startup splash (pygame_core.SplashScreen): fade-in then hold, per image --
+# Startup splash (pygamine.SplashScreen): fade-in then hold, per image --
 # same values as chokepoint/highrise/hunted/standoff, which all show the
 # same pygame_logo.png this way.
 SPLASH_FADE_MS = 1500

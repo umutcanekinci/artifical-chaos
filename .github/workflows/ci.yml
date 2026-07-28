@@ -3,7 +3,7 @@ name: CI
 # Runs on GitHub's servers AFTER code arrives there:
 #   * every push to any branch
 #   * every pull request targeting main
-# Runs the pygame_core engine's own test suite (vendored as a submodule),
+# Runs the pygamine engine's own test suite (vendored as a submodule),
 # this app's own game-logic tests (tests/), and a smoke test that the app
 # itself still boots headlessly. Deliberately separate from release.yml,
 # which only builds/publishes on version tags (or a manual dry run).
@@ -18,10 +18,10 @@ concurrency:
 
 jobs:
   engine-tests:
-    name: pygame_core test suite
+    name: pygamine test suite
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (with pygame_core submodule)
+      - name: Checkout (with pygamine submodule)
         uses: actions/checkout@v7
         with:
           submodules: recursive
@@ -33,7 +33,7 @@ jobs:
           enable-cache: true
 
       - name: Run pytest
-        working-directory: src/pygame_core
+        working-directory: src/pygamine
         env:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
@@ -45,7 +45,7 @@ jobs:
     permissions:
       contents: write  # only this job pushes the regenerated coverage badge
     steps:
-      - name: Checkout (with pygame_core submodule)
+      - name: Checkout (with pygamine submodule)
         uses: actions/checkout@v7
         with:
           submodules: recursive
@@ -79,7 +79,7 @@ jobs:
     name: App smoke test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (with pygame_core submodule)
+      - name: Checkout (with pygamine submodule)
         uses: actions/checkout@v7
         with:
           submodules: recursive

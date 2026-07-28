@@ -86,7 +86,7 @@ def test_effects_face_the_direction_passed_in(game):
     right = MuzzleFlash(game, (0, 0), facing=0)
     left = MuzzleFlash(game, (0, 0), facing=1)
 
-    from pygame_core.ecs.components.animator import Animator
+    from pygamine.ecs.components.animator import Animator
     assert right.get_component(Animator).current_clip == "flash_0"
     assert left.get_component(Animator).current_clip == "flash_1"
 

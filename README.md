@@ -6,7 +6,7 @@ Artificial Chaos is a 2D top-down game prototype built with [pygame](https://www
 
 ![Gameplay](docs/preview.gif)
 
-> **⚠️ Status: unfinished prototype**, not in active development. Core combat, a first pass of effects, and flag-capture win/lose now work (see Gameplay below); most of the effects/projectiles sheets, 2 of 6 soldier classes, and 1 of 5 drone types (Centipede) are still unimplemented. It has been migrated onto my shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine (vendored as a git submodule, like [chokepoint](https://github.com/umutcanekinci/chokepoint)): the game loop now extends `pygame_core.Application`, entities are `GameObject`s with `Transform`/`SpriteRenderer2D`/`Animator` components rendered through `pygame_core.Camera`, and asset/spritesheet handling uses `pygame_core` instead of project-local copies.
+> **⚠️ Status: unfinished prototype**, not in active development. Core combat, a first pass of effects, and flag-capture win/lose now work (see Gameplay below); most of the effects/projectiles sheets, 2 of 6 soldier classes, and 1 of 5 drone types (Centipede) are still unimplemented. It has been migrated onto my shared [`pygamine`](https://github.com/umutcanekinci/pygamine) engine (vendored as a git submodule, like [chokepoint](https://github.com/umutcanekinci/chokepoint)): the game loop now extends `pygamine.Application`, entities are `GameObject`s with `Transform`/`SpriteRenderer2D`/`Animator` components rendered through `pygamine.Camera`, and asset/spritesheet handling uses `pygamine` instead of project-local copies.
 
 ## Gameplay
 
@@ -44,17 +44,17 @@ pip install pygame pytmx
 python __main__.py
 ```
 
-If you forgot `--recurse-submodules`: `git submodule update --init` (pulls in the `pygame_core` engine).
+If you forgot `--recurse-submodules`: `git submodule update --init` (pulls in the `pygamine` engine).
 
 ## Project layout
 
 ```
-__main__.py               Entry point — injects src/ + src/pygame_core/ onto sys.path, runs Game()
-src/app/game.py           Game (extends pygame_core.Application) — update/draw orchestration
+__main__.py               Entry point — injects src/ + src/pygamine/ onto sys.path, runs Game()
+src/app/game.py           Game (extends pygamine.Application) — update/draw orchestration
 src/gameplay/map.py       Tiled map loader + Obstacle (collision walls)
-src/gameplay/camera.py    FollowCamera — pygame_core.Camera plus a follow() helper
+src/gameplay/camera.py    FollowCamera — pygamine.Camera plus a follow() helper
 src/gameplay/collision.py AABB Collide resolution against the wall list
-src/gameplay/animation.py Builds Animator clips from pygame_core.SpriteSheet frames
+src/gameplay/animation.py Builds Animator clips from pygamine.SpriteSheet frames
 src/gameplay/combat.py    Shared hitscan combat primitives (find_nearest/ready_to_attack/apply_damage)
 src/gameplay/effects.py   Cosmetic combat VFX (muzzle flash, hit spark/spatter, explosion, bullet tracer)
 src/gameplay/ui.py        Overhead progress/HP bars + radial fills (draw_bar, draw_radial_progress, draw_health_bar)
@@ -63,7 +63,7 @@ src/gameplay/soldier.py   Recruitable soldiers that follow + auto-fight nearby d
 src/gameplay/robot.py     Drone base class + Scarab/Spider/Hornet/Wasp subclasses (aggro/chase/attack AI)
 src/gameplay/flag.py      Objective flags -- capturable while held and uncontested by a drone
 src/util/constants.py     Constants (FPS, render size, sprite sizes, durations, ranks, combat tuning)
-src/pygame_core/          Shared engine (git submodule)
+src/pygamine/             Shared engine (git submodule)
 assets/                   Images (soldiers, robots, UI), tileset + Tiled map
 ```
 

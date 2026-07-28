@@ -72,7 +72,7 @@
   </tbody>
 </table>
 <h2>Status</h2>
-<p>Prototype, fully playable start to finish: all 6 soldier classes, all 5 drone types, flag-capture win/lose, rank-up bonuses, and a first pass of combat effects and balance are in. Built on my shared <a target="_blank" href="https://github.com/umutcanekinci/pygame-core">pygame_core</a> engine (vendored as a git submodule, like <a target="_blank" href="https://github.com/umutcanekinci/chokepoint">chokepoint</a>).</p>
+<p>Prototype, fully playable start to finish: all 6 soldier classes, all 5 drone types, flag-capture win/lose, rank-up bonuses, and a first pass of combat effects and balance are in. Built on my shared <a target="_blank" href="https://github.com/umutcanekinci/pygamine">pygamine</a> engine (vendored as a git submodule, like <a target="_blank" href="https://github.com/umutcanekinci/chokepoint">chokepoint</a>).</p>
 <h2>Requirements</h2>
 <ul>
   <li>Python 3.12+</li>
@@ -87,8 +87,8 @@ uv run python __main__.py</code></pre>
 <p>If you forgot <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">--recurse-submodules</code>: <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">git submodule update --init</code>.</p>
 <p>Without <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">uv</code>: <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">pip install .</code> then <code style="background: #eee; color: #333; padding: 2px 4px; border-radius: 3px;">python __main__.py</code>.</p>
 <h2>Project Layout</h2>
-<pre style="background: #222; color: #eee; padding: 12px; border-radius: 5px; overflow-x: auto;"><code>__main__.py            Entry point &mdash; injects src/ + src/pygame_core/ onto sys.path, runs Game()
-src/app/game.py         Game (extends pygame_core.Application) &mdash; update/draw orchestration
+<pre style="background: #222; color: #eee; padding: 12px; border-radius: 5px; overflow-x: auto;"><code>__main__.py            Entry point &mdash; injects src/ + src/pygamine/ onto sys.path, runs Game()
+src/app/game.py         Game (extends pygamine.Application) &mdash; update/draw orchestration
 src/gameplay/map.py     Tiled map loader, obstacles, flag/drone/soldier spawning
 src/gameplay/player.py  Squad Leader &mdash; movement, sidearm, rank-ups, squad stance toggle
 src/gameplay/soldier.py Recruitable soldiers (6 classes) &mdash; follow/avoid/auto-engage
@@ -97,7 +97,7 @@ src/gameplay/flag.py    Objective flags &mdash; capture progress, contest, reinf
 src/gameplay/combat.py  Shared hitscan combat primitives
 src/gameplay/effects.py Cosmetic combat VFX (muzzle flash, tracer, explosions, smoke, ...)
 src/util/constants.py   Tuning constants (stats, ranges, cooldowns, rank bonuses)
-src/pygame_core/        Shared engine (git submodule)
+src/pygamine/        Shared engine (git submodule)
 assets/                 Images (soldiers, robots, effects, UI), tileset + Tiled map</code></pre>
 <p>See <a target="_blank" href="https://github.com/umutcanekinci/artifical-chaos/blob/main/CLAUDE.md">CLAUDE.md</a> for the full architecture overview and <a target="_blank" href="https://github.com/umutcanekinci/artifical-chaos/blob/main/GDD.md">GDD.md</a> for the full story/design doc.</p>
 <h2>Credits</h2>

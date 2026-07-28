@@ -1,7 +1,7 @@
 import pygame
 
-from pygame_core.image import load_image
-from pygame_core.asset_path import ImagePath
+from pygamine.image import load_image
+from pygamine.asset_path import ImagePath
 
 from util.constants import (
     TUTORIAL_FONT_SIZE, TUTORIAL_GROUP_GAP, TUTORIAL_ICON_GAP, TUTORIAL_ICON_SIZE,

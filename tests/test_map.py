@@ -84,7 +84,7 @@ def test_map_spawn_point_does_not_collide_with_a_wall(game):
 
 
 def test_map_spawns_visible_collidable_rock_obstacles(game):
-    from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
+    from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
 
     m = Map(game)
 
@@ -119,8 +119,8 @@ def test_rock_obstacle_frame_ids_are_not_blank():
     # caught only by rendering the actual frames and checking their
     # bounding rects, which is exactly what this asserts going forward.
     import pygame
-    from pygame_core.asset_path import ImagePath
-    from pygame_core.sprite_sheet import SpriteSheet
+    from pygamine.asset_path import ImagePath
+    from pygamine.sprite_sheet import SpriteSheet
 
     sheet = SpriteSheet.from_path(ImagePath("obstacles-and-objects", "obstacles_and_objects"))
     size = ROCK_OBSTACLE_SIZE

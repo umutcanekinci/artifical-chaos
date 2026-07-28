@@ -9,7 +9,7 @@ Requires cwd = repo root (matches how __main__.py and CI both invoke it).
 import sys
 
 sys.path.insert(0, "src")
-sys.path.insert(0, "src/pygame_core")
+sys.path.insert(0, "src/pygamine")
 
 
 def boot_game() -> None:
