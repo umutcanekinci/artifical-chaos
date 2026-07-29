@@ -4,12 +4,12 @@ import pygame
 import pytmx
 from pygame.math import Vector2
 
-from pygamine.tilemap import TiledMap
-from pygamine.ecs.game_object import GameObject
-from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
-from pygamine.sprite_sheet import SpriteSheet
-from pygamine.image import scale_by
-from pygamine.asset_path import ImagePath
+from pygamine import TiledMap
+from pygamine import GameObject
+from pygamine import SpriteRenderer2D
+from pygamine import SpriteSheet
+from pygamine import scale_by
+from pygamine import ImagePath
 
 from util.constants import *
 from gameplay.flag import Flag

@@ -1,12 +1,12 @@
 import pygame
 from typing import override
 
-from pygamine.application import Application
-from pygamine.ecs.game_object_list import GameObjectList
-from pygamine.image import load_image
-from pygamine.asset_path import ImagePath
-from pygamine.splash_screen import SplashScreen
-from pygamine.spatial_grid import SpatialGrid
+from pygamine import Application
+from pygamine import GameObjectList
+from pygamine import load_image
+from pygamine import ImagePath
+from pygamine import SplashScreen
+from pygamine import SpatialGrid
 
 from util.constants import *
 from gameplay.camera import FollowCamera

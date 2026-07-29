@@ -2,10 +2,10 @@ import pygame
 from pygame.math import Vector2
 from typing import override
 
-from pygamine.ecs.game_object import GameObject
-from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
-from pygamine.ecs.components.animator import Animator
-from pygamine.asset_path import ImagePath
+from pygamine import GameObject
+from pygamine import SpriteRenderer2D
+from pygamine import Animator
+from pygamine import ImagePath
 
 from util.constants import *
 from gameplay.collision import collide, nearby_walls

@@ -1,9 +1,9 @@
 import pygame
 
-from pygamine.sprite_sheet import SpriteSheet
-from pygamine.image import scale_by
-from pygamine.ecs.components.animator import Animator
-from pygamine.ecs.components.animation_clip import AnimationClip
+from pygamine import SpriteSheet
+from pygamine import scale_by
+from pygamine import Animator
+from pygamine import AnimationClip
 from util.constants import SPRITE_SIZE, SCALE_FACTOR
 
 

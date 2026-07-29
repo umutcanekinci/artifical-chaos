@@ -1,4 +1,4 @@
-from pygamine.camera import Camera
+from pygamine import Camera
 
 
 class FollowCamera(Camera):

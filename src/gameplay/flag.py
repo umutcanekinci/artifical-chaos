@@ -4,12 +4,12 @@ import pygame
 from pygame.math import Vector2
 from typing import override
 
-from pygamine.ecs.game_object import GameObject
-from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
-from pygamine.ecs.components.animator import Animator
-from pygamine.ecs.components.animation_clip import AnimationClip
-from pygamine.sprite_sheet import SpriteSheet
-from pygamine.asset_path import ImagePath
+from pygamine import GameObject
+from pygamine import SpriteRenderer2D
+from pygamine import Animator
+from pygamine import AnimationClip
+from pygamine import SpriteSheet
+from pygamine import ImagePath
 
 from util.constants import *
 from gameplay.animation import scaled_row
