@@ -119,6 +119,33 @@ FLAG_SPAWN_COOLDOWN_MS      = 8000
 FLAG_SPAWN_MAX_CONCURRENT   = 3
 FLAG_SPAWN_RADIUS           = 80  # random offset from the flag's own position
 
+# Flag tiers (Map._rank_flag_tier_indices / Map.spawn_objects) -- flags are
+# ranked by distance from the player's own spawn_point into these bands
+# (nearest first) so the ones right next to the tutorial's first few
+# seconds don't hit exactly as hard as ones deep in the map: "Outpost"
+# draws its guardian/reinforcement drones only from the two cheapest types
+# and caps the spawner tighter than the default, ramping up to "Bastion",
+# which draws from the full roster including Centipede and lets more
+# spawn at once. Order matters -- index 0 is the nearest band. drone_pool
+# entries must be keys of gameplay.robot.DRONE_CLASSES.
+FLAG_TIERS = (
+    {
+        "name": "Outpost",
+        "drone_pool": ("Scarab", "Wasp"),
+        "spawn_max_concurrent": 2,
+    },
+    {
+        "name": "Stronghold",
+        "drone_pool": ("Scarab", "Spider", "Hornet", "Wasp"),
+        "spawn_max_concurrent": FLAG_SPAWN_MAX_CONCURRENT,
+    },
+    {
+        "name": "Bastion",
+        "drone_pool": ("Scarab", "Spider", "Hornet", "Wasp", "Centipede"),
+        "spawn_max_concurrent": FLAG_SPAWN_MAX_CONCURRENT + 2,
+    },
+)
+
 # HP bar (gameplay/ui.py's draw_health_bar) -- shared by Player, Soldier,
 # and Drone, drawn overhead. The player's own bar is always visible (HP is
 # the one stat where "you'd have to be told to go check" is actually a

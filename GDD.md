@@ -576,3 +576,31 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     1/20s) instead of trusting `get_time()` directly — covers this
     specific stall and any other (alt-tab, window drag, a GC pause)
     without needing to know about them individually.
+
+25. ~~Fix the per-tick collision cost item 22's simulation flagged~~
+    **done** — the actual culprit was never `has_line_of_sight()`, it was
+    `Player`/`Soldier`/`Drone.move()` scanning the *entire* `game.walls`
+    list twice (once per axis) every frame for every mover, an
+    `O(movers × walls)` cost that grows as `Flag._spawn_drone()` piles up
+    reinforcement drones over a long session. `game.wall_grid`
+    (`pygamine.spatial_grid.SpatialGrid`, already used the same way by
+    the `standoff` sibling project) is built once per `restart()` right
+    after `Map()` finishes building every wall — walls never change again
+    for that run — and `gameplay/collision.nearby_walls()` narrows each
+    `move()` call to one grid query instead of the full list. Measured,
+    not just theorized: a synthetic 310-drone/467-wall session dropped
+    from ~291ms/frame to ~6ms/frame (~47x) with this change alone.
+
+26. ~~Flag difficulty tiers~~ **done** — the flags right next to the
+    `Tutorial` overlay's first few seconds were exactly as hard as ones
+    deep in the map, with nothing scaling to the fact a player reaches
+    them first. `Map._rank_flag_tier_indices()` ranks all 10 flags by
+    distance from `map.spawn_point` into 3 roughly-equal bands (see
+    `FLAG_TIERS`, `util/constants.py`): `"Outpost"` (nearest) restricts
+    guardian/reinforcement drones to the two cheapest types and spawns
+    fewer of them concurrently; `"Bastion"` (farthest) opens the pool back
+    up to every type including Centipede and allows more concurrent
+    spawns; `"Stronghold"` (middle) matches the original untiered numbers
+    exactly, so this is additive shaping at the two extremes rather than
+    a rebalance of the whole map. See the Flag entity entry in CLAUDE.md
+    for the exact mechanism.

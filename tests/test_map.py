@@ -1,8 +1,10 @@
+import math
+
 import pygame
 
 from gameplay.map import Map, RockObstacle, _collider_local_rect
 from util.constants import (
-    FLAG_CONTEST_RADIUS, ROCK_OBSTACLE_COUNT, ROCK_OBSTACLE_FRAME_IDS, ROCK_OBSTACLE_SIZE, SCALE_FACTOR,
+    FLAG_CONTEST_RADIUS, FLAG_TIERS, ROCK_OBSTACLE_COUNT, ROCK_OBSTACLE_FRAME_IDS, ROCK_OBSTACLE_SIZE, SCALE_FACTOR,
 )
 
 
@@ -73,6 +75,53 @@ def test_map_spawn_point_is_parsed_and_scaled(game):
     expected = (spawn_obj.x * SCALE_FACTOR + m.tile_width / 2, spawn_obj.y * SCALE_FACTOR + m.tile_height / 2)
 
     assert m.spawn_point == expected
+
+
+class FakeFlagObj:
+    """Stands in for a pytmx flag object -- _rank_flag_tier_indices only
+    reads .x/.y."""
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
+def test_rank_flag_tier_indices_nearest_flags_get_the_lowest_band():
+    m = Map.__new__(Map)  # skip __init__ -- this method only needs tile_width/height
+    m.tile_width = m.tile_height = 1  # SCALE_FACTOR offset only, keep raw coords simple
+
+    # In raw tile units (pre-SCALE_FACTOR): flags at distances 10, 20, 30 from
+    # the origin, given out of order to confirm ranking (not insertion order)
+    # drives the band assignment.
+    flag_objs = [FakeFlagObj(20, 0), FakeFlagObj(30, 0), FakeFlagObj(10, 0)]
+    spawn_point = (0, 0)
+
+    bands = m._rank_flag_tier_indices(flag_objs, spawn_point)
+
+    assert bands[2] < bands[0] < bands[1]  # nearest (10) < mid (20) < farthest (30)
+    assert bands[2] == 0  # nearest flag always lands in the lowest (Outpost) band
+
+
+def test_rank_flag_tier_indices_falls_back_to_the_middle_tier_with_no_spawn_point():
+    m = Map.__new__(Map)
+    m.tile_width = m.tile_height = 1
+    flag_objs = [FakeFlagObj(0, 0), FakeFlagObj(50, 50)]
+
+    bands = m._rank_flag_tier_indices(flag_objs, None)
+
+    assert bands == [len(FLAG_TIERS) // 2] * 2
+
+
+def test_map_assigns_flag_tiers_by_distance_from_spawn_point(game):
+    m = Map(game)
+
+    distances = [(math.dist(m.spawn_point, f.rect.center), f.tier) for f in game.flags]
+    distances.sort(key=lambda pair: pair[0])
+
+    band_count = len(FLAG_TIERS)
+    for rank, (_, tier) in enumerate(distances):
+        expected_band = min(rank * band_count // len(distances), band_count - 1)
+        assert tier == FLAG_TIERS[expected_band]
 
 
 def test_map_spawn_point_does_not_collide_with_a_wall(game):

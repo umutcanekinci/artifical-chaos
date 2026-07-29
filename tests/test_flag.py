@@ -6,7 +6,7 @@ from gameplay.flag import Flag
 from gameplay.soldier import Soldier
 from util.constants import (
     FLAG_CAPTURE_RADIUS, FLAG_CAPTURE_RATE, FLAG_CONTEST_RADIUS, FLAG_DECAY_RATE,
-    FLAG_SPAWN_COOLDOWN_MS, FLAG_SPAWN_MAX_CONCURRENT, FLAG_SPAWN_RADIUS,
+    FLAG_SPAWN_COOLDOWN_MS, FLAG_SPAWN_MAX_CONCURRENT, FLAG_SPAWN_RADIUS, FLAG_TIERS,
 )
 
 
@@ -210,6 +210,29 @@ def test_spawn_drone_caps_concurrent_count(game, fake_ticks):
 
     assert len(game.robots) == FLAG_SPAWN_MAX_CONCURRENT
     assert len(f.spawned_drones) == FLAG_SPAWN_MAX_CONCURRENT
+
+
+def test_spawn_drone_caps_at_the_tiers_own_limit_not_the_untiered_default(game, fake_ticks):
+    outpost = FLAG_TIERS[0]
+    assert outpost["spawn_max_concurrent"] < FLAG_SPAWN_MAX_CONCURRENT  # precondition for this test to mean anything
+    f = Flag(game, (0, 0), tier=outpost)
+
+    for i in range(FLAG_SPAWN_MAX_CONCURRENT + 3):
+        fake_ticks["t"] = (i + 1) * FLAG_SPAWN_COOLDOWN_MS
+        f._spawn_drone()
+
+    assert len(f.spawned_drones) == outpost["spawn_max_concurrent"]
+
+
+def test_spawn_drone_only_picks_from_the_tiers_own_drone_pool(game, fake_ticks):
+    outpost = FLAG_TIERS[0]
+    f = Flag(game, (0, 0), tier=outpost)
+
+    for i in range(outpost["spawn_max_concurrent"]):
+        fake_ticks["t"] = (i + 1) * FLAG_SPAWN_COOLDOWN_MS
+        f._spawn_drone()
+
+    assert all(type(d).__name__ in outpost["drone_pool"] for d in f.spawned_drones)
 
 
 def test_spawn_drone_allows_more_once_a_previous_one_dies(game, fake_ticks):

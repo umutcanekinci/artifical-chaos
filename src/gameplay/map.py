@@ -96,11 +96,14 @@ class Map(TiledMap):
         self.spawn_decorative_obstacles()
 
     def spawn_objects(self) -> None:
-        # Cycle through the wired-up drone/soldier types per flag so the map
-        # has some variety instead of every spawn being an identical pair.
-        drone_types = list(DRONE_CLASSES)
+        # Two passes: the tmx's object order doesn't guarantee the
+        # "spawnPoint" object comes before every "flag" one, but ranking
+        # flags into FLAG_TIERS bands (see _rank_flag_tier_indices) needs
+        # spawn_point known first, so gather everything before spawning
+        # anything.
         soldier_classes = list(SOLDIER_CLASSES)
-        flag_index = 0
+        flag_objs = []
+        spawn_point = None
 
         for obj in self.tmx.objects:
             # Tiled's per-tile collision shapes (added in the tileset's own
@@ -113,22 +116,60 @@ class Map(TiledMap):
                 continue
 
             if "flag" in obj.name:
-                x = obj.x * SCALE_FACTOR + self.tile_width / 2
-                y = obj.y * SCALE_FACTOR + self.tile_height / 2
-                Flag(self.game, (x, y))
+                flag_objs.append(obj)
+            elif "spawnPoint" in obj.name:
+                spawn_point = (obj.x * SCALE_FACTOR + self.tile_width / 2,
+                              obj.y * SCALE_FACTOR + self.tile_height / 2)
 
-                drone_class = DRONE_CLASSES[drone_types[flag_index % len(drone_types)]]
-                drone_class(self.game, (x, y))
+        self.spawn_point = spawn_point
+        band_indices = self._rank_flag_tier_indices(flag_objs, spawn_point)
 
-                soldier_class = soldier_classes[flag_index % len(soldier_classes)]
-                Soldier(self.game, (x, y + 100), soldier_class=soldier_class)
+        # Guardian drones cycle within their own flag's tier pool (round-
+        # robin per band, not globally) so each tier still reads as varied
+        # rather than every Outpost flag getting an identical guardian;
+        # soldiers stay a single global round-robin -- tiers are a drone/
+        # spawner-difficulty concept only, not a soldier one.
+        tier_pool_counters = [0] * len(FLAG_TIERS)
 
-                flag_index += 1
+        for flag_index, (obj, band) in enumerate(zip(flag_objs, band_indices)):
+            x = obj.x * SCALE_FACTOR + self.tile_width / 2
+            y = obj.y * SCALE_FACTOR + self.tile_height / 2
+            tier = FLAG_TIERS[band]
+            Flag(self.game, (x, y), tier=tier)
 
-            if "spawnPoint" in obj.name:
-                x = obj.x * SCALE_FACTOR + self.tile_width / 2
-                y = obj.y * SCALE_FACTOR + self.tile_height / 2
-                self.spawn_point = (x, y)
+            pool = tier["drone_pool"]
+            drone_class = DRONE_CLASSES[pool[tier_pool_counters[band] % len(pool)]]
+            tier_pool_counters[band] += 1
+            drone_class(self.game, (x, y))
+
+            soldier_class = soldier_classes[flag_index % len(soldier_classes)]
+            Soldier(self.game, (x, y + 100), soldier_class=soldier_class)
+
+    def _rank_flag_tier_indices(self, flag_objs, spawn_point) -> list[int]:
+        """Ranks flag_objs by distance from spawn_point into len(FLAG_TIERS)
+        roughly-equal bands, nearest first (e.g. 10 flags / 3 tiers gives
+        bands of sizes 4/3/3) -- see FLAG_TIERS in util/constants.py.
+        Returns one FLAG_TIERS index per flag_obj, in the same order as
+        flag_objs (not sorted by distance), so callers can zip it straight
+        back against flag_objs. Falls back to the middle tier for every
+        flag if spawn_point is somehow missing (every real map has one --
+        see CLAUDE.md's spawnPoint note) rather than crashing."""
+        band_count = len(FLAG_TIERS)
+        if spawn_point is None or not flag_objs:
+            return [band_count // 2] * len(flag_objs)
+
+        def world_pos(obj) -> Vector2:
+            return Vector2(obj.x * SCALE_FACTOR + self.tile_width / 2,
+                          obj.y * SCALE_FACTOR + self.tile_height / 2)
+
+        sp = Vector2(spawn_point)
+        by_distance = sorted(range(len(flag_objs)),
+                             key=lambda i: (world_pos(flag_objs[i]) - sp).length_squared())
+
+        band_of = [0] * len(flag_objs)
+        for rank, flag_i in enumerate(by_distance):
+            band_of[flag_i] = min(rank * band_count // len(flag_objs), band_count - 1)
+        return band_of
 
     def spawn_tile_colliders(self) -> None:
         """Spawn an Obstacle for every placed tile whose gid carries a Tiled

@@ -27,9 +27,14 @@ class Flag(GameObject):
     -- the original single guardian (Map.spawn_objects()) can die quickly,
     which used to leave nothing contesting the flag at all."""
 
-    def __init__(self, game, position):
+    def __init__(self, game, position, tier=None):
+        """`tier` is one of util/constants.py's FLAG_TIERS entries (or None,
+        used by every test that constructs a Flag directly and by any flag
+        Map.spawn_objects() couldn't rank -- falls back to the untiered
+        defaults, same behavior as before tiers existed)."""
         super().__init__(name="flag")
         self.game = game
+        self.tier = tier
 
         self.rect.size = (FLAG_SIZE * SCALE_FACTOR, FLAG_SIZE * SCALE_FACTOR)
         self.rect.center = position
@@ -72,14 +77,16 @@ class Flag(GameObject):
         if not ready_to_attack(now, self.last_spawn_time, FLAG_SPAWN_COOLDOWN_MS):
             return
         self.spawned_drones = [d for d in self.spawned_drones if d.active]
-        if len(self.spawned_drones) >= FLAG_SPAWN_MAX_CONCURRENT:
+        max_concurrent = self.tier["spawn_max_concurrent"] if self.tier else FLAG_SPAWN_MAX_CONCURRENT
+        if len(self.spawned_drones) >= max_concurrent:
             return
         self.last_spawn_time = now
 
         offset = Vector2(random.uniform(-1, 1), random.uniform(-1, 1))
         if offset.length() > 0:
             offset.scale_to_length(random.uniform(0, FLAG_SPAWN_RADIUS))
-        drone_class = DRONE_CLASSES[random.choice(list(DRONE_CLASSES))]
+        pool = self.tier["drone_pool"] if self.tier else tuple(DRONE_CLASSES)
+        drone_class = DRONE_CLASSES[random.choice(pool)]
         drone = drone_class(self.game, Vector2(self.rect.center) + offset)
         self.spawned_drones.append(drone)
 
