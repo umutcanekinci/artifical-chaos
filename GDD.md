@@ -275,9 +275,11 @@ wired up as `BulletImpact` (`gameplay/effects.py`) — see item 21 below.
 Every *landed* hit still resolves directly against `find_nearest`'s target
 (see Combat above), untouched; the decal only covers the previously-silent
 case of `Player.shoot()` finding no target at all, via a new cosmetic-only
-`combat.raycast()`. Still unused for "not required for the core loop, no
-mechanic needs it yet" reasons: `big-fragments.png`/`small-fragments.png`
-(extra explosion debris), and `RPG-round.png` (no weapon uses it).
+`combat.raycast()`. `big-fragments.png`/`small-fragments.png` are wired
+up too now, as `Fragments`/`BigFragments` (item 28 below) — extra debris
+alongside `Drone.die()`'s existing `Explosion`, picked per drone type via
+`DRONE_TYPES["fragments"]`. Still unused: `RPG-round.png` (no weapon uses
+it).
 
 ## Objectives / win-lose
 
@@ -361,7 +363,7 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
 |---|---|---|
 | Soldier classes | 6 | 6 (Assault, Sniper, MachineGunner, AntiTank, Grenadier, RadioOperator) |
 | Drone types | 5 | 5 (Scarab, Spider, Hornet, Wasp, Centipede — all combat-capable) |
-| Effects sheets | 10 | 8 (muzzle-flashes, laser-flash, hit-sparks, hit-spatters, small-explosion, big-explosion, smoke, bullet-impacts) |
+| Effects sheets | 10 | 10 (muzzle-flashes, laser-flash, hit-sparks, hit-spatters, small-explosion, big-explosion, smoke, bullet-impacts, small-fragments, big-fragments) |
 | Projectile sheets | 3 | 2 (bullets+plasma tracer-only, Grenade — see Effects & projectiles above) |
 | Maps | 1 | 1 |
 
@@ -629,3 +631,15 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     Grenadier-Class, the lowest single-target-dps soldier class, now
     loses to Spider where it used to win) is the melee rework doing its
     job, not a regression.
+
+28. ~~Wire up big-fragments.png/small-fragments.png~~ **done** — the last
+    two unused effect sheets (Content inventory above), now `Fragments`/
+    `BigFragments` (`gameplay/effects.py`), a debris burst spawned
+    alongside `Drone.die()`'s existing `Explosion`/`Smoke`. Reuses the
+    same split `Explosion`/`BigExplosion` already established one level
+    down: `DRONE_TYPES["fragments"]` is `"big"` for Scarab/Centipede
+    (baseline drone and heavy siege unit) and `"small"` for Spider/
+    Hornet/Wasp (the three fast/fragile types), so a heavier drone's
+    death visibly scatters chunkier debris than a fast one's. Centipede's
+    per-segment death loop spawns a `BigFragments` at every segment too,
+    same pattern as its existing per-segment `Explosion`/`Smoke`.

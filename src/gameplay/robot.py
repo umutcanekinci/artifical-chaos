@@ -11,7 +11,7 @@ from util.constants import *
 from gameplay.collision import collide, nearby_walls
 from gameplay.animation import add_directional_clips, add_oneshot_clip
 from gameplay.combat import apply_damage, find_nearest, has_line_of_sight, muzzle_position, ready_to_attack
-from gameplay.effects import Explosion, HitSpatter, LaserFlash, MuzzleFlash, Smoke, Tracer
+from gameplay.effects import BigFragments, Explosion, Fragments, HitSpatter, LaserFlash, MuzzleFlash, Smoke, Tracer
 from gameplay.ui import draw_health_bar
 
 
@@ -41,6 +41,7 @@ class Drone(GameObject):
         self.has_destroyed_clip = stats["destroyed_row"] is not None
         self.muzzle_effect = stats["muzzle_effect"]
         self.stand_off_range = stats["stand_off_range"]
+        self.fragments = stats["fragments"]
 
         self.acceleration = Vector2()
         self.velocity = Vector2()
@@ -151,6 +152,10 @@ class Drone(GameObject):
         self.velocity = Vector2()
         Explosion(self.game, self.position)
         Smoke(self.game, self.position)
+        if self.fragments == "big":
+            BigFragments(self.game, self.position)
+        else:
+            Fragments(self.game, self.position)
         if self.has_destroyed_clip:
             self.status = "destroyed"
             self.death_time = pygame.time.get_ticks()
@@ -248,6 +253,7 @@ class Centipede(Drone):
                 segment.active = False
                 Explosion(self.game, segment.position)
                 Smoke(self.game, segment.position)
+                BigFragments(self.game, segment.position)  # Centipede is always "big" -- see DRONE_TYPES
 
 
 class Scarab(Drone):

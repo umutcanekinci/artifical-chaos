@@ -219,6 +219,31 @@ def test_centipede_die_spawns_smoke_at_every_segment_too(game, fake_ticks):
     assert len(smokes) == 1 + len(c.segments)
 
 
+def test_die_spawns_big_fragments_for_heavy_types_small_for_light_ones(game, fake_ticks):
+    from gameplay.effects import BigFragments, Fragments
+
+    for cls, expected in ((Scarab, BigFragments), (Spider, Fragments), (Hornet, Fragments),
+                          (Wasp, Fragments), (Centipede, BigFragments)):
+        game.all_sprites.clear()
+        d = cls(game, (0, 0))
+        d.die()
+
+        kinds = [type(o) for o in game.all_sprites]
+        assert expected in kinds, cls.__name__
+        other = Fragments if expected is BigFragments else BigFragments
+        assert other not in kinds, cls.__name__
+
+
+def test_centipede_die_spawns_big_fragments_at_every_segment_too(game, fake_ticks):
+    from gameplay.effects import BigFragments
+
+    c = Centipede(game, (0, 0))
+    c.die()
+
+    fragments = [o for o in game.all_sprites if isinstance(o, BigFragments)]
+    assert len(fragments) == 1 + len(c.segments)
+
+
 def test_facing_does_not_flip_while_crossing_directly_over_the_target(game):
     # Regression test: delta.x hovering near 0 while an enemy crosses to the
     # other side of its target used to flip self.facing every frame from

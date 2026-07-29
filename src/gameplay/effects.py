@@ -99,6 +99,35 @@ class BigExplosion(TimedEffect):
                          facing=facing, name="big_boom")
 
 
+class Fragments(TimedEffect):
+    """A small debris burst, spawned alongside Explosion/Smoke on a light/
+    fast drone's death (Spider/Hornet/Wasp -- see DRONE_TYPES["fragments"]
+    in util/constants.py) for extra visual weight beyond the fireball
+    alone. small-fragments.png's own bounding box grows frame over frame
+    (confirmed by rendering it with a grid overlay, same discipline as
+    every other effect sheet here) -- a piece-scattering-outward animation,
+    not a looping idle, so it fits TimedEffect's one-shot-then-remove
+    contract the same as Explosion/BigExplosion."""
+
+    def __init__(self, game, position, facing: int = 0) -> None:
+        super().__init__(game, position, ImagePath("small-fragments", "effects"),
+                         row=0, frame_count=6, size=24, fps=FRAGMENTS_FPS,
+                         facing=facing, name="fragments")
+
+
+class BigFragments(TimedEffect):
+    """Fragments' counterpart for a heavy/armored drone's death (Scarab/
+    Centipede -- see DRONE_TYPES["fragments"]), using big-fragments.png's
+    chunkier debris instead -- the same Explosion/BigExplosion split
+    reused one level down, so a Centipede segment popping reads as
+    heavier than a Wasp's."""
+
+    def __init__(self, game, position, facing: int = 0) -> None:
+        super().__init__(game, position, ImagePath("big-fragments", "effects"),
+                         row=0, frame_count=6, size=32, fps=BIG_FRAGMENTS_FPS,
+                         facing=facing, name="big_fragments")
+
+
 class Smoke(TimedEffect):
     """A lingering smoke puff, spawned alongside Explosion/BigExplosion at
     the same position and time -- SMOKE_FPS is deliberately slower than

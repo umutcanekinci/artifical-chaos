@@ -263,6 +263,7 @@ DRONE_TYPES = {
         "destroyed_row": 4,
         "muzzle_effect": "gunpowder",
         "stand_off_range": 0,
+        "fragments": "big",  # baseline drone -- Scarab/Centipede are the two "big" types, see Centipede below
     },
     "Spider": {
         # Fast flanker, melee-only (GDD role): fire_range/fire_damage 0
@@ -294,6 +295,7 @@ DRONE_TYPES = {
         "destroyed_row": 4,
         "muzzle_effect": "gunpowder",
         "stand_off_range": 0,
+        "fragments": "small",  # fast flanker -- Spider/Hornet/Wasp are the three "small" types
     },
     "Hornet": {
         # Flying, ranged-only (GDD role): melee_range 0 means the melee
@@ -310,6 +312,7 @@ DRONE_TYPES = {
         "destroyed_row": None,
         "muzzle_effect": "laser",
         "stand_off_range": 150,
+        "fragments": "small",
     },
     "Wasp": {
         # Only a single hover animation exists on the sheet (no separate
@@ -324,6 +327,7 @@ DRONE_TYPES = {
         "destroyed_row": None,
         "muzzle_effect": "laser",
         "stand_off_range": 0,
+        "fragments": "small",
     },
     "Centipede": {
         # Heavy, slow siege unit (GDD role) -- the one drone type with a
@@ -352,6 +356,7 @@ DRONE_TYPES = {
         "destroyed_row": None,
         "muzzle_effect": "gunpowder",
         "stand_off_range": 0,
+        "fragments": "big",
     },
 }
 
@@ -547,6 +552,9 @@ BIG_EXPLOSION_FPS = 18   # assets/images/effects/big-explosion.png, 11 frames @ 
                          # reads differently from a drone dying
 SMOKE_FPS = 10           # assets/images/effects/smoke.png, 8 frames @ 8px -- slower than EXPLOSION_FPS/
                          # BIG_EXPLOSION_FPS on purpose, so it visibly outlasts either fireball (see Smoke)
+FRAGMENTS_FPS     = 20   # assets/images/effects/small-fragments.png, 6 frames @ 24px -- light/fast drone death
+BIG_FRAGMENTS_FPS = 18   # assets/images/effects/big-fragments.png, 6 frames @ 32px -- heavy/armored drone death,
+                         # same Explosion/BigExplosion split one level down (see Fragments/BigFragments)
 
 # Tracer (gameplay/effects.py) is a visual-only "bullet" that flies from
 # attacker to target -- damage is already applied by the time it spawns
