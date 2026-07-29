@@ -32,9 +32,9 @@ class Soldier(GameObject):
     def __init__(self, game, position, soldier_class: str = "Assault-Class"):
         super().__init__(name="soldier")
         self.game = game
-        self.max_hp = 100
-        self.hp = self.max_hp
         stats = SOLDIER_CLASSES[soldier_class]
+        self.max_hp = stats["hp"]
+        self.hp = self.max_hp
         self.ms = stats["speed"]
         self.fire_range = stats["fire_range"]
         self.fire_damage = stats["fire_damage"]

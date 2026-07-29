@@ -371,15 +371,17 @@ def test_hornet_and_wasp_fire_a_laser_flash_not_a_muzzle_flash(game, fake_ticks)
         assert MuzzleFlash not in kinds, cls.__name__
 
 
-def test_scarab_spider_and_centipede_still_fire_a_muzzle_flash(game, fake_ticks):
+def test_scarab_and_centipede_still_fire_a_muzzle_flash(game, fake_ticks):
     from gameplay.effects import LaserFlash, MuzzleFlash
 
-    # Outside melee_range for all three (40/50/45) but inside fire_range
-    # (250/90/200), so each one fires instead of meleeing.
+    # Outside melee_range for both (40/45) but inside fire_range (250/200),
+    # so each one fires instead of meleeing. Spider is excluded here (see
+    # test_spider_never_fires_and_always_closes_to_melee below) -- it's
+    # melee-only now, fire_range 0.
     game.player.position = Vector2(60, 0)
     game.player.hp = 100
 
-    for cls, stats in ((Scarab, SCARAB), (Spider, SPIDER), (Centipede, CENTIPEDE)):
+    for cls, stats in ((Scarab, SCARAB), (Centipede, CENTIPEDE)):
         game.all_sprites.clear()
         d = cls(game, (0, 0))
         fake_ticks["t"] = stats["fire_cooldown_ms"]
@@ -388,6 +390,28 @@ def test_scarab_spider_and_centipede_still_fire_a_muzzle_flash(game, fake_ticks)
         kinds = [type(o) for o in game.all_sprites]
         assert MuzzleFlash in kinds, cls.__name__
         assert LaserFlash not in kinds, cls.__name__
+
+
+def test_spider_never_fires_and_always_closes_to_melee(game, fake_ticks):
+    from gameplay.effects import LaserFlash, MuzzleFlash
+
+    # By-construction (fire_range/fire_damage both 0, same idiom Hornet/Wasp
+    # use for melee_range: 0) -- distance <= 0 never true, so the fire
+    # branch in Drone.engage() can never fire no matter the distance.
+    assert SPIDER["fire_range"] == 0
+    assert SPIDER["fire_damage"] == 0
+
+    game.player.position = Vector2(60, 0)  # outside melee_range (50), where the old fire_range (90) used to reach
+    game.player.hp = 100
+    d = Spider(game, (0, 0))
+    fake_ticks["t"] = SPIDER["fire_cooldown_ms"]
+    d.engage()
+
+    kinds = [type(o) for o in game.all_sprites]
+    assert MuzzleFlash not in kinds
+    assert LaserFlash not in kinds
+    assert d.status == "walking"
+    assert game.player.hp == 100  # no ranged hit landed
 
 
 def test_wasp_has_only_one_animation_frame_set_reused_for_every_status(game):

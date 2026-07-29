@@ -604,3 +604,28 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     exactly, so this is additive shaping at the two extremes rather than
     a rebalance of the whole map. See the Flag entity entry in CLAUDE.md
     for the exact mechanism.
+
+27. ~~Melee-vs-ranged drone role rework + a Soldier hp tuning pass~~
+    **done** — every drone still had a nonzero `fire_range` even where
+    the GDD role said otherwise: Spider ("fast flanker that prefers
+    melee") could still plink away at range, and worse, with its old
+    `stand_off_range: 0` it would plant its feet the instant it entered
+    that weak `fire_range` and never actually close the last stretch to
+    melee at all — a real behavioral mismatch, not just an unused stat.
+    `fire_range`/`fire_damage` are now both `0` (the same "by
+    construction" idiom Hornet/Wasp already use for `melee_range: 0`),
+    with `melee_damage` bumped a little (14 → 16) to keep its overall
+    threat up now that it has no ranged fallback. Soldier `hp` was flat
+    100 across every class until now — the same gap the drone-hp pass
+    already closed on the enemy side — so Sniper-Class/RadioOperator-
+    Class (least reason to be caught in a real fight) dropped to 70/80
+    and MachineGunner-Class/AntiTank-Class (shortest `fire_range`, forced
+    closest to danger) rose to 110/120, Assault-Class/Grenadier-Class
+    staying at the original 100. `scripts/balance_sim.py` (new, see
+    Testing above) drives the real `move()`/`engage()`/`attack()` code
+    through simulated 1v1s to sanity-check changes like these instead of
+    guessing — it caught the Spider fire-branch-lockup bug above, and
+    confirmed the Spider rework's only real balance side effect (a solo
+    Grenadier-Class, the lowest single-target-dps soldier class, now
+    loses to Spider where it used to win) is the melee rework doing its
+    job, not a regression.

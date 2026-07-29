@@ -265,12 +265,29 @@ DRONE_TYPES = {
         "stand_off_range": 0,
     },
     "Spider": {
-        # Fast flanker that prefers melee (GDD role): high speed closes
-        # distance fast, and a short fire_range means it rarely bothers
-        # shooting from afar instead of just closing in to melee.
+        # Fast flanker, melee-only (GDD role): fire_range/fire_damage 0
+        # means the fire branch in Drone.engage() never triggers -- "by
+        # construction", the same idiom Hornet/Wasp already use for
+        # melee_range: 0. This isn't just a paper-only distinction: with
+        # the old fire_range (90) and stand_off_range 0 (no kiting),
+        # Drone.engage()'s fire branch zeroes acceleration the instant
+        # Spider got within it, so it would plant its feet and snipe for
+        # a weak 5 dmg/1s forever instead of ever actually closing the
+        # last stretch to melee_range (50) -- a real behavioral mismatch
+        # with its own "prefers melee" GDD role, not just an unused stat.
+        # Now it reliably closes the gap and fights at melee_damage
+        # instead. melee_damage bumped a little (14 -> 16) on top of that
+        # to keep its overall threat up now that it never has a ranged
+        # option to fall back on. A simulated 1v1 pass (scripts/
+        # balance_sim.py) confirmed a solo Grenadier-Class --
+        # the soldier class with the lowest single-target dps, meant for
+        # AoE against clusters rather than duels -- now loses to Spider
+        # where it used to win; that's the melee rework doing its job
+        # (Spider actually reaching melee now, instead of being stuck
+        # sniping weakly at range), not a balance regression to chase.
         "hp": 55, "speed": 110,
-        "melee_range": 50, "fire_range": 90,
-        "melee_damage": 14, "fire_damage": 5,
+        "melee_range": 50, "fire_range": 0,
+        "melee_damage": 16, "fire_damage": 0,
         "melee_cooldown_ms": 500, "fire_cooldown_ms": 1000,
         "sprite_size": SPRITE_SIZE,
         "clip_rows": {"idle": 0, "walking": 1, "fire": 2, "melee": 3},
@@ -467,29 +484,39 @@ SQUAD_STANCE_HUD_MARGIN = 20
 # fog of war, nothing to reveal) or a stat-boosting aura (would need
 # tracking each buffed soldier's un-boosted base stats to undo the buff
 # once out of range, real complexity for a first pass).
+# "hp" was flat 100 across every class until this pass -- a Sniper sitting
+# at 450 range had exactly the same survivability as an AntiTank trooper
+# built to stand and slug it out, the same gap the first drone-hp pass
+# (see DRONE_TYPES above) had already closed on the enemy side. Values
+# below lean into each class's existing role rather than introducing new
+# ones: Sniper/RadioOperator are the two classes with the least reason to
+# be caught in a real fight (long range, or no combat role at all) so
+# they're the most fragile; MachineGunner/AntiTank are the two classes
+# whose short fire_range forces them to stay closer to danger, so they're
+# the tankiest. Assault/Grenadier keep the original 100 as the baseline.
 SOLDIER_CLASSES = {
     "Assault-Class": {
-        "speed": 120, "fire_range": 250, "fire_damage": 10, "fire_cooldown_ms": 500,
+        "hp": 100, "speed": 120, "fire_range": 250, "fire_damage": 10, "fire_cooldown_ms": 500,
         "splash_radius": 0, "support_cooldown_ms": 0,
     },
     "Sniper-Class": {
-        "speed": 110, "fire_range": 450, "fire_damage": 25, "fire_cooldown_ms": 1200,
+        "hp": 70, "speed": 110, "fire_range": 450, "fire_damage": 25, "fire_cooldown_ms": 1200,
         "splash_radius": 0, "support_cooldown_ms": 0,
     },
     "MachineGunner-Class": {
-        "speed": 110, "fire_range": 180, "fire_damage": 4, "fire_cooldown_ms": 150,
+        "hp": 110, "speed": 110, "fire_range": 180, "fire_damage": 4, "fire_cooldown_ms": 150,
         "splash_radius": 0, "support_cooldown_ms": 0,
     },
     "AntiTank-Class": {
-        "speed": 105, "fire_range": 200, "fire_damage": 35, "fire_cooldown_ms": 1500,
+        "hp": 120, "speed": 105, "fire_range": 200, "fire_damage": 35, "fire_cooldown_ms": 1500,
         "splash_radius": 0, "support_cooldown_ms": 0,
     },
     "Grenadier-Class": {
-        "speed": 115, "fire_range": 220, "fire_damage": 15, "fire_cooldown_ms": 1400,
+        "hp": 100, "speed": 115, "fire_range": 220, "fire_damage": 15, "fire_cooldown_ms": 1400,
         "splash_radius": 90, "support_cooldown_ms": 0,
     },
     "RadioOperator-Class": {
-        "speed": 110, "fire_range": 0, "fire_damage": 0, "fire_cooldown_ms": 0,
+        "hp": 80, "speed": 110, "fire_range": 0, "fire_damage": 0, "fire_cooldown_ms": 0,
         "splash_radius": 0, "support_cooldown_ms": 15000,
     },
 }
