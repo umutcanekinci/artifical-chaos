@@ -12,7 +12,7 @@ from pygamine.image import scale_by
 from pygamine.asset_path import ImagePath
 
 from util.constants import *
-from gameplay.collision import collide
+from gameplay.collision import collide, nearby_walls
 from gameplay.animation import add_directional_clips
 from gameplay.combat import apply_damage, find_nearest, has_line_of_sight, muzzle_position, raycast, ready_to_attack
 from gameplay.effects import BulletImpact, FloatingText, HitSpark, MuzzleFlash, Tracer
@@ -181,17 +181,19 @@ class Player(GameObject):
             self.status = "idle"
 
     def move(self):
+        walls = nearby_walls(self.game, self.hit_rect)
+
         self.velocity = self.acceleration * self.game.delta_time * self.ms
         self.velocity -= self.velocity * FRICTION
 
         self.position.x += self.velocity.x * self.game.delta_time
         self.hit_rect.centerx = self.position.x
-        if collide(self, 'x', self.game.walls):
+        if collide(self, 'x', walls):
             self.position.x = self.hit_rect.centerx
 
         self.position.y += self.velocity.y * self.game.delta_time
         self.hit_rect.centery = self.position.y
-        if collide(self, 'y', self.game.walls):
+        if collide(self, 'y', walls):
             self.position.y = self.hit_rect.centery
 
         self.hit_rect.center = self.rect.center = self.position

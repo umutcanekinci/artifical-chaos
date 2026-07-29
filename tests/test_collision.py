@@ -1,7 +1,10 @@
 import pygame
 from pygame.math import Vector2
+from types import SimpleNamespace
 
-from gameplay.collision import collide, is_collide
+from pygamine.spatial_grid import SpatialGrid
+
+from gameplay.collision import collide, is_collide, nearby_walls
 
 
 class FakeMover:
@@ -96,3 +99,20 @@ def test_collide_only_resolves_against_the_first_matching_wall():
     collide(mover, "x", walls)  # must not raise, behaves like a single wall
 
     assert mover.hit_rect.right == 4
+
+
+def test_nearby_walls_falls_back_to_the_plain_list_with_no_grid():
+    game = SimpleNamespace(walls=[FakeWall(pygame.Rect(0, 0, 10, 10))])
+    assert nearby_walls(game, pygame.Rect(0, 0, 10, 10)) is game.walls
+
+
+def test_nearby_walls_queries_the_grid_when_present():
+    near = FakeWall(pygame.Rect(0, 0, 10, 10))
+    far = FakeWall(pygame.Rect(1000, 1000, 10, 10))
+    grid = SpatialGrid.of_static([near, far], cell_size=50)
+    game = SimpleNamespace(walls=[near, far], wall_grid=grid)
+
+    result = nearby_walls(game, pygame.Rect(0, 0, 10, 10))
+
+    assert near in result
+    assert far not in result

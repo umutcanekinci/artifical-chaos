@@ -6,6 +6,26 @@ so the original spritecollide-based logic carries over by iterating the list.
 """
 
 
+def nearby_walls(game, hit_rect):
+    """Candidate walls for a collision check against `hit_rect`, narrowed to
+    game.wall_grid's nearby cells (pygamine.spatial_grid.SpatialGrid) instead
+    of scanning every wall on the map. Walls are static for a run's lifetime
+    (Map() builds them all before Game.restart() ever calls update()), so the
+    grid is built once per restart rather than every frame -- see
+    Game.restart(). Falls back to the plain wall list when no grid is set
+    (tests construct Player/Soldier/Drone against a bare FakeGame with no
+    wall_grid), same convention standoff's Entity.move() already uses.
+
+    Callers query once per move() call (not once per axis) and inflate by a
+    full cell on every side, since a mover can cross into an adjacent cell
+    within the same frame's movement."""
+    grid = getattr(game, "wall_grid", None)
+    if grid is None:
+        return game.walls
+    area = hit_rect.inflate(grid.cell_size * 2, grid.cell_size * 2)
+    return list(grid.query_rect(area))
+
+
 def is_collide(mover, other) -> bool:
     return mover.hit_rect.colliderect(other.rect)
 

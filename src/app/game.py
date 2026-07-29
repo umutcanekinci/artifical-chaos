@@ -6,6 +6,7 @@ from pygamine.ecs.game_object_list import GameObjectList
 from pygamine.image import load_image
 from pygamine.asset_path import ImagePath
 from pygamine.splash_screen import SplashScreen
+from pygamine.spatial_grid import SpatialGrid
 
 from util.constants import *
 from gameplay.camera import FollowCamera
@@ -69,6 +70,16 @@ class Game(Application):
         self.robots = GameObjectList()
 
         self.map = Map(self)
+        # Walls are fixed for the whole run once Map() finishes (tile
+        # colliders + RockObstacles, never mutated after) -- built once per
+        # restart rather than every frame. Turns Player/Soldier/Drone.move()'s
+        # wall check from an O(walls) scan per mover into roughly O(1): a
+        # long session lets FLAG_SPAWN_MAX_CONCURRENT drones pile up across
+        # all 10 flags at once, and that mover count scanning the full wall
+        # list every frame was the real cause of the per-tick slowdown noted
+        # in GDD.md's line-of-sight item (has_line_of_sight() itself was
+        # never the culprit -- nothing was in aggro range during that test).
+        self.wall_grid = SpatialGrid.of_static(self.walls, max(self.map.tile_width, self.map.tile_height))
         self.camera = FollowCamera(pygame.Rect((0, 0), self.size),
                                    map_width=self.map.rect.width,
                                    map_height=self.map.rect.height)

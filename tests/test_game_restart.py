@@ -21,6 +21,8 @@ class FakeMap:
         self.game = game
         self.rect = FakeRect()
         self.spawn_point = (150, 250)
+        self.tile_width = 48
+        self.tile_height = 48
 
 
 class FakePlayer:
@@ -79,6 +81,7 @@ def test_restart_rebuilds_entity_lists_and_subsystems(monkeypatch):
     assert isinstance(fake.player, FakePlayer)
     assert isinstance(fake.tutorial, FakeTutorial)
     assert isinstance(fake.camera, FakeCamera)
+    assert fake.wall_grid.cell_size == 48
 
 
 def test_restart_positions_the_player_and_camera_from_the_fresh_map(monkeypatch):
