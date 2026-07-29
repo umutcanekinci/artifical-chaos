@@ -585,7 +585,7 @@ frame size confirmed first (they bleed past a naive 16px grid slice).
     list twice (once per axis) every frame for every mover, an
     `O(movers × walls)` cost that grows as `Flag._spawn_drone()` piles up
     reinforcement drones over a long session. `game.wall_grid`
-    (`pygamine.spatial_grid.SpatialGrid`, already used the same way by
+    (`pygamine.util.spatial_grid.SpatialGrid`, already used the same way by
     the `standoff` sibling project) is built once per `restart()` right
     after `Map()` finishes building every wall — walls never change again
     for that run — and `gameplay/collision.nearby_walls()` narrows each

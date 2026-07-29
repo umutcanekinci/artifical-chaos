@@ -8,7 +8,7 @@ so the original spritecollide-based logic carries over by iterating the list.
 
 def nearby_walls(game, hit_rect):
     """Candidate walls for a collision check against `hit_rect`, narrowed to
-    game.wall_grid's nearby cells (pygamine.spatial_grid.SpatialGrid) instead
+    game.wall_grid's nearby cells (pygamine.util.spatial_grid.SpatialGrid) instead
     of scanning every wall on the map. Walls are static for a run's lifetime
     (Map() builds them all before Game.restart() ever calls update()), so the
     grid is built once per restart rather than every frame -- see
