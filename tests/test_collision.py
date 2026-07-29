@@ -2,7 +2,7 @@ import pygame
 from pygame.math import Vector2
 from types import SimpleNamespace
 
-from pygamine.spatial_grid import SpatialGrid
+from pygamine import SpatialGrid
 
 from gameplay.collision import collide, is_collide, nearby_walls
 

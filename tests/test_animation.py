@@ -1,9 +1,9 @@
 import pygame
 
-from pygamine.asset_path import ImagePath
-from pygamine.ecs.components.animator import Animator
-from pygamine.ecs.game_object import GameObject
-from pygamine.sprite_sheet import SpriteSheet
+from pygamine import ImagePath
+from pygamine import Animator
+from pygamine import GameObject
+from pygamine import SpriteSheet
 
 from gameplay.animation import add_directional_clips, scaled_row
 from util.constants import SCALE_FACTOR, SPRITE_SIZE

@@ -444,7 +444,7 @@ def test_wasp_has_only_one_animation_frame_set_reused_for_every_status(game):
     # points at row 0, so idle/walking/fire/melee are all built from the
     # same source frames (just distinct clip objects with the same pixels).
     import pygame
-    from pygamine.ecs.components.animator import Animator
+    from pygamine import Animator
 
     w = Wasp(game, (0, 0))
     clips = w.get_component(Animator).clips
